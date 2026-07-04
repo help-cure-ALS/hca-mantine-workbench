@@ -1,0 +1,18 @@
+# Build artefacts
+dist/
+*.tsbuildinfo
+
+# Local dev — see README "Development" section. The library has no
+# node_modules of its own in dev; consumers' node_modules carry the
+# peer-dependency installs.
+node_modules/
+
+# OS / IDE
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+*.log

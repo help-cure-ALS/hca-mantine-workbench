@@ -1,0 +1,108 @@
+/**
+ * @hca/mantine-workbench — Theme tokens.
+ *
+ * Plain CSS custom properties — no SASS, no PostCSS mixin required.
+ * Consumers import the file once:
+ *
+ *   import "@hca/mantine-workbench/tokens.css";
+ *
+ * All workbench components read from it. To override a default color,
+ * set the var either on `:root` (global) or on a container (locally
+ * scoped). Example:
+ *
+ *   :root {
+ *     --mantine-workbench-nav-bg: #1a1a1a;
+ *     --mantine-workbench-row-selected-bg: #eaf2ff;
+ *   }
+ *
+ * Dark-mode variants follow the Mantine selector
+ * `[data-mantine-color-scheme="dark"]` — the same one Mantine's
+ * `ColorSchemeScript` sets synchronously pre-hydration on `<html>`.
+ * So consumers don't need any extra configuration for the dark
+ * variants to take effect.
+ */
+
+:root {
+    /* ─── App layout ────────────────────────────────────────── */
+
+    /** Height of the `<PageHeader>` bar. All page headers sit on this
+   *  line; sticky headers in scroll containers have the same height. */
+    --mantine-workbench-header-h: 54px;
+
+    /** Background of the info-bubble badge in the `<PageHeader>` (round "i"
+   *  to the right of the title, containing the subtitle as a tooltip). */
+    --mantine-workbench-info-bubble-bg: var(--mantine-color-dark-6);
+    --mantine-workbench-info-bubble-color: #ffffff;
+
+    /* ─── Filter Panel ─────────────────────────────────────── */
+
+    /** Background of the `<FilterPanel>` container. Default is a subtle
+   *  gray step so the panel stands out from the white main content. */
+    --mantine-workbench-filter-panel-bg: var(--mantine-color-gray-0);
+
+    /** Hover background of a single filter row. */
+    --mantine-workbench-filter-row-hover-bg: var(--mantine-color-gray-1);
+
+    /* ─── DataGrid ─────────────────────────────────────────── */
+
+    /** Background of a selected DataGrid row. Default is a workbench-own
+   *  hint of purple, because Mantine's `--mantine-color-*-1` steps
+   *  would jump depending on `primaryColor`. Consumers with their own
+   *  accent color redefine this in their globals.css. */
+    --mantine-workbench-row-selected-bg: #f3e8fb;
+
+    /** Table header background. Slightly lighter than the filter-panel
+   *  body so table + filter stay clearly separable. */
+    --mantine-workbench-grid-header-bg: var(--mantine-color-gray-0);
+
+    /** Header text color. Deliberately not fully black — headers read
+   *  like meta labels, not like body text. */
+    --mantine-workbench-grid-header-color: var(--mantine-color-gray-7);
+
+    /* ─── Resizable Handle ─────────────────────────────────── */
+
+    /** Color of the 4px accent line on a resizable handle on hover.
+   *  Default falls back to Mantine's active primary color — consumers
+   *  with their own accent color set the var directly. */
+    --mantine-workbench-resizable-hover-color: var(
+        --mantine-primary-color-filled,
+        var(--mantine-color-blue-6)
+    );
+
+    /* ─── MainNav (dark sidebar palette) ───────────────────── */
+
+    /** Background of the `<MainNav>` sidebar. Default is a neutral dark
+   *  gray (`#28272d`), tuned so both Mantine light and dark mode stay
+   *  readable against it — the nav is intentionally scheme-independent
+   *  (a brand layer above the app body). */
+    --mantine-workbench-nav-bg: #28272d;
+    --mantine-workbench-nav-text: rgba(255, 255, 255, 0.92);
+    --mantine-workbench-nav-text-dimmed: rgba(255, 255, 255, 0.56);
+    --mantine-workbench-nav-hover-bg: rgba(255, 255, 255, 0.08);
+    --mantine-workbench-nav-active-bg: rgba(255, 255, 255, 0.12);
+    --mantine-workbench-nav-border: rgba(255, 255, 255, 0.08);
+}
+
+/* ─── Dark mode ──────────────────────────────────────────── */
+
+[data-mantine-color-scheme="dark"] {
+    /** Selected rows in dark mode use a richer grape step — the light
+   *  `#f3e8fb` would be barely readable against a black body. */
+    --mantine-workbench-row-selected-bg: var(--mantine-color-grape-8);
+
+    /** Table header slightly darker than the body so the separation
+   *  is preserved. */
+    --mantine-workbench-grid-header-bg: var(--mantine-color-dark-6);
+    --mantine-workbench-grid-header-color: var(--mantine-color-dark-1);
+
+    /** Filter panel: subtly darker than the body. */
+    --mantine-workbench-filter-panel-bg: var(--mantine-color-dark-7);
+    --mantine-workbench-filter-row-hover-bg: var(--mantine-color-dark-5);
+
+    /** Info bubble: stays dark-6 for enough contrast against the body. */
+    --mantine-workbench-info-bubble-bg: var(--mantine-color-dark-4);
+
+    /** Nav palette stays identical in dark mode — the nav is scheme-
+   *  independent (see comment above). To change that, redefine the
+   *  vars here or in your own CSS. */
+}

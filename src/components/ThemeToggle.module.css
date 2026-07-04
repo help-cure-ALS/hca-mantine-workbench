@@ -1,0 +1,28 @@
+/**
+ * CSS-only theme icon toggle.
+ *
+ * In light mode the moon icon is shown (the click target for going
+ * dark). In dark mode the sun is shown.
+ *
+ * Controlled by the `[data-mantine-color-scheme]` attribute that
+ * Mantine's `ColorSchemeScript` sets synchronously on `<html>` pre-
+ * hydration. Both icons live in the DOM; CSS decides which is visible
+ * — so there is no React state read and no hydration mismatch.
+ */
+
+.iconLight,
+.iconDark {
+    display: none;
+}
+
+/* Light mode → moon visible */
+[data-mantine-color-scheme="light"] .iconDark,
+/* Fallback before the attribute is set (very brief, pre-hydration) */
+html:not([data-mantine-color-scheme]) .iconDark {
+    display: inline-block;
+}
+
+/* Dark mode → sun visible */
+[data-mantine-color-scheme="dark"] .iconLight {
+    display: inline-block;
+}
