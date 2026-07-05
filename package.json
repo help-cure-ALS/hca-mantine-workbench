@@ -1,6 +1,6 @@
 {
   "name": "@hca/mantine-workbench",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Generic Mantine-v9 UI components: theme foundation, resizable panels, main navigation, data grid. No domain logic.",
   "license": "MIT",
   "private": true,

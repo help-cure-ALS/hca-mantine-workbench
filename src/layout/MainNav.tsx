@@ -230,7 +230,11 @@ export function MainNav({
     tokens: tokensProp,
     renderLink,
 }: MainNavProps) {
-    const [internalCollapsed, setInternalCollapsed] = useMainNavCollapsed({
+    // Only the value is destructured — toggling happens in controlled
+    // mode via the consumer, or via useMainNavCollapsed in the header
+    // buttons. Consumers type-check this source directly, so an unused
+    // setter would fail their noUnusedLocals builds (TS6133).
+    const [internalCollapsed] = useMainNavCollapsed({
         storageKey,
         defaultCollapsed,
     });
