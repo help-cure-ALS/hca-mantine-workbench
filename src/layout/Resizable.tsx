@@ -40,6 +40,7 @@ import {
     useState,
     type ComponentProps,
     type PointerEvent as ReactPointerEvent,
+    type Ref,
     type RefObject,
 } from "react";
 import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown } from "lucide-react";
@@ -396,10 +397,16 @@ export function ResizableHandle({
     // double-click with no visible effect is worse than no shortcut.
     const onDoubleClick = controls && side && collapsible ? onToggle : undefined;
 
+    // Cast: Mantine's bundled hook types and newer @types/react
+    // (>= 19.2.6) disagree on the ref-callback cleanup return type
+    // (`VoidOrUndefinedOnly` vs `void`). Runtime-compatible — purely
+    // a type-version skew between the two packages.
+    const separatorRef = ref as Ref<HTMLDivElement>;
+
     return (
         <Separator
             {...rest}
-            elementRef={ref}
+            elementRef={separatorRef}
             data-resize-handle="true"
             data-collapsed={collapsed ? "true" : "false"}
             onPointerMove={onPointerMove}
