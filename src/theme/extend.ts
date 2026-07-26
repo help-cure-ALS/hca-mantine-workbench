@@ -48,50 +48,68 @@ export function extendTheme(...overrides: MantineThemeOverride[]): MantineThemeO
     const result: MantineThemeOverride = {};
     for (const override of overrides) {
         if (!override) continue;
+        // Snapshot the accumulated sub-objects BEFORE Object.assign below
+        // replaces them with the override's references. Merging against
+        // `result` after the assign would merge the override with itself
+        // and silently drop everything accumulated so far (this exact bug
+        // ate the base theme's component defaults).
+        const previous = {
+            colors: result.colors,
+            components: result.components,
+            headings: result.headings,
+            fontSizes: result.fontSizes,
+            lineHeights: result.lineHeights,
+            radius: result.radius,
+            spacing: result.spacing,
+            shadows: result.shadows,
+            breakpoints: result.breakpoints,
+        };
+
         // Plain top-level fields: later ones win.
         Object.assign(result, override);
+
         // Sub-objects are merged shallowly so a later override doesn't
         // accidentally replace e.g. the base theme's `colors` completely
         // when it only adds a new color.
         if (override.colors) {
-            result.colors = { ...(result.colors ?? {}), ...override.colors };
+            result.colors = { ...(previous.colors ?? {}), ...override.colors };
         }
         if (override.components) {
             result.components = {
-                ...(result.components ?? {}),
+                ...(previous.components ?? {}),
                 ...override.components,
             };
         }
         if (override.headings) {
             result.headings = {
-                ...(result.headings ?? {}),
+                ...(previous.headings ?? {}),
                 ...override.headings,
             };
         }
         if (override.fontSizes) {
             result.fontSizes = {
-                ...(result.fontSizes ?? {}),
+                ...(previous.fontSizes ?? {}),
                 ...override.fontSizes,
             };
         }
         if (override.lineHeights) {
             result.lineHeights = {
-                ...(result.lineHeights ?? {}),
+                ...(previous.lineHeights ?? {}),
                 ...override.lineHeights,
             };
         }
         if (override.radius) {
-            result.radius = { ...(result.radius ?? {}), ...override.radius };
+            result.radius = { ...(previous.radius ?? {}), ...override.radius };
         }
         if (override.spacing) {
-            result.spacing = { ...(result.spacing ?? {}), ...override.spacing };
+            result.spacing = { ...(previous.spacing ?? {}), ...override.spacing };
         }
         if (override.shadows) {
-            result.shadows = { ...(result.shadows ?? {}), ...override.shadows };
+            result.shadows = { ...(previous.shadows ?? {}), ...override.shadows };
         }
         if (override.breakpoints) {
             result.breakpoints = {
-                ...(result.breakpoints ?? {}),
+                ...(previous.breakpoints ?? {}),
                 ...override.breakpoints,
             };
         }

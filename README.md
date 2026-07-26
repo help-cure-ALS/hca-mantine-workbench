@@ -7,8 +7,12 @@ for shared use across the TENOS/HCA ecosystem, usable by anyone.
 ## What's in the box
 
 - **`theme`** — `baseTheme` (font scale + line heights + default
-  radius) plus `extendTheme(...overrides)` for composing project-
-  specific tokens on top.
+  radius + house-convention component defaults: `Switch` without the
+  thumb indicator dot, `Select`/`MultiSelect` check icon on the right)
+  plus `extendTheme(...overrides)` for composing project-specific
+  tokens on top. `extendTheme` merges sub-objects (`components`,
+  `colors`, …) at the key level, so project overrides ADD to the base
+  defaults instead of replacing them.
 - **`layout`** — `ResizableGroup` / `ResizablePanel` / `ResizableHandle`
   (Mantine-tuned wrappers around `react-resizable-panels`), `MainNav`
   with collapsible rail mode, `MainNavHeaderButton`,
@@ -63,13 +67,13 @@ In the consumer's `package.json`, pin a release tag:
 
 ```json
 {
-  "dependencies": {
-    "@hca/mantine-workbench": "github:help-cure-ALS/hca-mantine-workbench#v0.1.0"
-  }
+    "dependencies": {
+        "@hca/mantine-workbench": "github:help-cure-ALS/hca-mantine-workbench#v0.1.4"
+    }
 }
 ```
 
-Always pin a tag (`#v0.1.0`), never a branch — untagged refs make
+Always pin a tag (`#v0.1.4`), never a branch — untagged refs make
 builds non-reproducible. Available versions are the git tags of this
 repository.
 
@@ -97,16 +101,12 @@ import { MantineProvider } from "@mantine/core";
 import { baseTheme, extendTheme } from "@hca/mantine-workbench";
 
 const theme = extendTheme(baseTheme, {
-  primaryColor: "grape",
-  // your project-specific colors / component defaults
+    primaryColor: "grape",
+    // your project-specific colors / component defaults
 });
 
 export function App() {
-  return (
-    <MantineProvider theme={theme}>
-      {/* ... */}
-    </MantineProvider>
-  );
+    return <MantineProvider theme={theme}>{/* ... */}</MantineProvider>;
 }
 ```
 
@@ -133,9 +133,9 @@ export function App() {
 
 - **Next.js**: list the library in `next.config.ts`'s
   `transpilePackages`:
-  ```ts
-  transpilePackages: ["@hca/mantine-workbench"],
-  ```
+    ```ts
+    transpilePackages: ["@hca/mantine-workbench"],
+    ```
 - **Vite**: nothing special — Vite transpiles TypeScript source from
   `node_modules` symlinks out of the box.
 
@@ -147,9 +147,9 @@ from a local sibling checkout instead of GitHub. In the consumer's
 
 ```json
 {
-  "dependencies": {
-    "@hca/mantine-workbench": "file:../hca-mantine-workbench"
-  }
+    "dependencies": {
+        "@hca/mantine-workbench": "file:../hca-mantine-workbench"
+    }
 }
 ```
 
@@ -175,19 +175,19 @@ the host and inside the container. The cleanest pattern:
 1. **Host**: create a symlink inside the consumer that points at the
    library's real location, so the consumer's directory tree looks
    "self-contained":
-   ```bash
-   cd <consumer-repo>
-   ln -s ../../hca-mantine-workbench .    # adjust relative path
-   ```
-   The symlink is `.gitignore`d.
+    ```bash
+    cd <consumer-repo>
+    ln -s ../../hca-mantine-workbench .    # adjust relative path
+    ```
+    The symlink is `.gitignore`d.
 2. **Container**: mount the same source-of-truth into the container at
    a path that mirrors the host layout. In `docker-compose.override.yml`:
-   ```yaml
-   services:
-     web:
-       volumes:
-         - ../hca-mantine-workbench:/app/hca-mantine-workbench
-   ```
+    ```yaml
+    services:
+        web:
+            volumes:
+                - ../hca-mantine-workbench:/app/hca-mantine-workbench
+    ```
 
 With those two steps, the `file:`-dep `file:../hca-mantine-workbench`
 (or whatever your relative path is) resolves to the same physical
@@ -217,6 +217,45 @@ indent, 100 print width). Before committing:
 npm run format
 ```
 
+### Testing before a release
+
+Two safety nets — both are mandatory before tagging. (Added in v0.1.4
+after a merge bug in `extendTheme` shipped unnoticed in v0.1.3: project
+`components` overrides silently replaced the base theme's component
+defaults instead of merging with them.)
+
+**1. Unit tests** — cover `extendTheme` composition, including the
+regression above (project overrides must not clobber base defaults):
+
+```bash
+npm test
+```
+
+**2. Live playground** — a Vite app in `playground/` that consumes
+`../src` directly via alias (hot reload, no build, no tag) with the
+same theme composition and provider setup (`v8CssVariablesResolver`)
+as the portals. What you see here is exactly what consumers get after
+tagging:
+
+```bash
+cd playground
+npm install
+npm run dev
+```
+
+Each playground section states the expected appearance (Switch without
+thumb indicator dot, Select/MultiSelect check icon right, project
+overrides not clobbering base defaults, workbench components smoke
+test). **If reality differs — do not tag.**
+
+Notes:
+
+- `resolve.dedupe` in `playground/vite.config.ts` is essential — the
+  workbench sources live outside the playground root, so without it
+  react/lucide resolve twice ("Invalid hook call" on a white page).
+- After changing dependencies or the Vite config, restart with
+  `npm run dev -- --force` to clear Vite's prebundle cache.
+
 ### Production build (optional)
 
 ```bash
@@ -238,17 +277,20 @@ a new tag. Full walkthrough (example: releasing `v0.2.0`):
 
 ### 1. Pre-flight checks
 
+Run the unit tests and verify visually in the playground — see
+[Testing before a release](#testing-before-a-release). Then:
+
 ```bash
-# Formatting must be clean
 npm run format:check
-
-# Type-check via a consumer (covers the library through its
-# node_modules resolution — see Development above)
-cd ../hca-medical-care/web && npx tsc --noEmit && cd -
-
-# Optional: verify the isolated dist build still compiles
-npm install && npm run build
 ```
+
+```bash
+cd ../hca-medical-care/web && npx tsc --noEmit && cd -
+```
+
+(Type-check via a consumer — covers the library through its
+`node_modules` resolution, see Development above. Optionally also
+verify the isolated dist build: `npm install && npm run build`.)
 
 If a consumer sits next to this checkout with a local `file:`/symlink
 dev setup, also click through the affected screens once.
@@ -280,14 +322,14 @@ release is broken, publish a fixed follow-up version instead.
 In each consumer (e.g. `hca-medical-care/web`):
 
 1. Bump the ref in `package.json`:
-   ```json
-   "@hca/mantine-workbench": "github:help-cure-ALS/hca-mantine-workbench#v0.2.0"
-   ```
+    ```json
+    "@hca/mantine-workbench": "github:help-cure-ALS/hca-mantine-workbench#v0.2.0"
+    ```
 2. Refresh the lockfile so frozen-lockfile Docker builds pick up the
    new tag:
-   ```bash
-   bun install     # or npm install
-   ```
+    ```bash
+    bun install     # or npm install
+    ```
 3. Commit `package.json` + lockfile together, run the consumer's
    typecheck/build, deploy the consumer as usual.
 
@@ -309,24 +351,24 @@ file is not imported, you just lose the ability to theme centrally.
 All tokens live in [`src/tokens.css`](./src/tokens.css). Override any
 of them on `:root` (global) or any DOM ancestor (locally scoped):
 
-| Token | Default | Used by |
-|-------|---------|---------|
-| `--mantine-workbench-header-h` | `54px` | `<PageHeader>` |
-| `--mantine-workbench-info-bubble-bg` | `var(--mantine-color-dark-6)` | `<PageHeader>` (info "i") |
-| `--mantine-workbench-info-bubble-color` | `#ffffff` | `<PageHeader>` (info "i") |
-| `--mantine-workbench-filter-panel-bg` | `var(--mantine-color-gray-0)` | `<FilterPanel>` |
-| `--mantine-workbench-filter-row-hover-bg` | `var(--mantine-color-gray-1)` | `<FilterPanel>` |
-| `--mantine-workbench-row-selected-bg` | `#f3e8fb` (light) / `var(--mantine-color-grape-8)` (dark) | `<DataGrid>` |
-| `--mantine-workbench-grid-header-bg` | `var(--mantine-color-gray-0)` (light) / `var(--mantine-color-dark-6)` (dark) | `<DataGrid>` |
-| `--mantine-workbench-grid-header-color` | `var(--mantine-color-gray-7)` (light) / `var(--mantine-color-dark-1)` (dark) | `<DataGrid>` |
-| `--mantine-workbench-resizable-hover-color` | Mantine primary | `<ResizableHandle>` |
-| `--mantine-workbench-nav-bg` | `#28272d` | `<MainNav>` |
-| `--mantine-workbench-nav-text` | `rgba(255, 255, 255, 0.92)` | `<MainNav>` |
-| `--mantine-workbench-nav-text-dimmed` | `rgba(255, 255, 255, 0.56)` | `<MainNav>` |
-| `--mantine-workbench-nav-hover-bg` | `rgba(255, 255, 255, 0.08)` | `<MainNav>` |
-| `--mantine-workbench-nav-active-bg` | `rgba(255, 255, 255, 0.12)` | `<MainNav>` |
-| `--mantine-workbench-nav-border` | `rgba(255, 255, 255, 0.08)` | `<MainNav>` |
-| `--background` | _(consumer-defined, typically `var(--mantine-color-body)`)_ | `<BulkActionBar>`, `<BulkPill>` — used as the "inverted" foreground on the dark bar background |
+| Token                                       | Default                                                                      | Used by                                                                                        |
+| ------------------------------------------- | ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `--mantine-workbench-header-h`              | `54px`                                                                       | `<PageHeader>`                                                                                 |
+| `--mantine-workbench-info-bubble-bg`        | `var(--mantine-color-dark-6)`                                                | `<PageHeader>` (info "i")                                                                      |
+| `--mantine-workbench-info-bubble-color`     | `#ffffff`                                                                    | `<PageHeader>` (info "i")                                                                      |
+| `--mantine-workbench-filter-panel-bg`       | `var(--mantine-color-gray-0)`                                                | `<FilterPanel>`                                                                                |
+| `--mantine-workbench-filter-row-hover-bg`   | `var(--mantine-color-gray-1)`                                                | `<FilterPanel>`                                                                                |
+| `--mantine-workbench-row-selected-bg`       | `#f3e8fb` (light) / `var(--mantine-color-grape-8)` (dark)                    | `<DataGrid>`                                                                                   |
+| `--mantine-workbench-grid-header-bg`        | `var(--mantine-color-gray-0)` (light) / `var(--mantine-color-dark-6)` (dark) | `<DataGrid>`                                                                                   |
+| `--mantine-workbench-grid-header-color`     | `var(--mantine-color-gray-7)` (light) / `var(--mantine-color-dark-1)` (dark) | `<DataGrid>`                                                                                   |
+| `--mantine-workbench-resizable-hover-color` | Mantine primary                                                              | `<ResizableHandle>`                                                                            |
+| `--mantine-workbench-nav-bg`                | `#28272d`                                                                    | `<MainNav>`                                                                                    |
+| `--mantine-workbench-nav-text`              | `rgba(255, 255, 255, 0.92)`                                                  | `<MainNav>`                                                                                    |
+| `--mantine-workbench-nav-text-dimmed`       | `rgba(255, 255, 255, 0.56)`                                                  | `<MainNav>`                                                                                    |
+| `--mantine-workbench-nav-hover-bg`          | `rgba(255, 255, 255, 0.08)`                                                  | `<MainNav>`                                                                                    |
+| `--mantine-workbench-nav-active-bg`         | `rgba(255, 255, 255, 0.12)`                                                  | `<MainNav>`                                                                                    |
+| `--mantine-workbench-nav-border`            | `rgba(255, 255, 255, 0.08)`                                                  | `<MainNav>`                                                                                    |
+| `--background`                              | _(consumer-defined, typically `var(--mantine-color-body)`)_                  | `<BulkActionBar>`, `<BulkPill>` — used as the "inverted" foreground on the dark bar background |
 
 > **`--background` is a hard requirement for `<BulkActionBar>`** — the bar
 > renders a dark layer (`var(--mantine-color-text)`) with text in
@@ -336,7 +378,7 @@ of them on `:root` (global) or any DOM ancestor (locally scoped):
 >
 > ```css
 > :root {
->   --background: var(--mantine-color-body);
+>     --background: var(--mantine-color-body);
 > }
 > ```
 
@@ -358,16 +400,16 @@ your dark block.
 ```css
 /* In your globals.css */
 :root {
-  /* Use your own brand color for selected rows */
-  --mantine-workbench-row-selected-bg: var(--your-accent-soft);
+    /* Use your own brand color for selected rows */
+    --mantine-workbench-row-selected-bg: var(--your-accent-soft);
 
-  /* A flatter, lighter nav bar */
-  --mantine-workbench-nav-bg: #ffffff;
-  --mantine-workbench-nav-text: var(--mantine-color-dark-9);
-  --mantine-workbench-nav-text-dimmed: var(--mantine-color-dark-3);
-  --mantine-workbench-nav-hover-bg: var(--mantine-color-gray-1);
-  --mantine-workbench-nav-active-bg: var(--mantine-color-gray-2);
-  --mantine-workbench-nav-border: var(--mantine-color-gray-3);
+    /* A flatter, lighter nav bar */
+    --mantine-workbench-nav-bg: #ffffff;
+    --mantine-workbench-nav-text: var(--mantine-color-dark-9);
+    --mantine-workbench-nav-text-dimmed: var(--mantine-color-dark-3);
+    --mantine-workbench-nav-hover-bg: var(--mantine-color-gray-1);
+    --mantine-workbench-nav-active-bg: var(--mantine-color-gray-2);
+    --mantine-workbench-nav-border: var(--mantine-color-gray-3);
 }
 ```
 
