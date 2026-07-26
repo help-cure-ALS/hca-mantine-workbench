@@ -12,13 +12,26 @@
  * Deliberately NOT here:
  *   - `primaryColor` (brand decision)
  *   - custom color tuples (domain-specific)
- *   - component style overrides (project convention)
+ *   - component STYLE overrides (project convention)
+ *
+ * Component BEHAVIOR defaults that are cross-project house conventions
+ * (not brand styling) do live here — currently:
+ *   - Switch without the thumb indicator dot
+ *   - Select/MultiSelect check icon on the right side of the option
+ * A project can still override them via `extendTheme` (component-level
+ * shallow merge, see `./extend.ts`).
  *
  * To extend the base theme with project specifics, use
  * `extendTheme(baseTheme, { ...overrides })` — see `./extend.ts`.
  */
 
-import { createTheme, type MantineThemeOverride } from "@mantine/core";
+import {
+    MultiSelect,
+    Select,
+    Switch,
+    createTheme,
+    type MantineThemeOverride,
+} from "@mantine/core";
 
 /**
  * Font-size scale (~20 % steps).
@@ -77,5 +90,25 @@ export const baseTheme: MantineThemeOverride = createTheme({
     lineHeights: baseLineHeights,
     headings: {
         fontFamily: "var(--font-editorial), var(--font-sans)",
+    },
+    components: {
+        // House convention: plain thumb without the colored indicator dot
+        Switch: Switch.extend({
+            defaultProps: {
+                withThumbIndicator: false,
+            },
+        }),
+        // House convention: selected-option checkmark on the right,
+        // so option labels stay left-aligned without an icon gutter
+        Select: Select.extend({
+            defaultProps: {
+                checkIconPosition: "right",
+            },
+        }),
+        MultiSelect: MultiSelect.extend({
+            defaultProps: {
+                checkIconPosition: "right",
+            },
+        }),
     },
 });
