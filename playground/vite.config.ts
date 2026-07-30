@@ -14,6 +14,7 @@ export default defineConfig({
     plugins: [react()],
     resolve: {
         alias: {
+            '@hca/mantine-workbench/rich-text': fileURLToPath(new URL('../src/rich-text/index.ts', import.meta.url)),
             '@hca/mantine-workbench': fileURLToPath(new URL('../src/index.ts', import.meta.url)),
         },
         dedupe: [
@@ -21,6 +22,10 @@ export default defineConfig({
             'react-dom',
             '@mantine/core',
             '@mantine/hooks',
+            '@mantine/tiptap',
+            '@tiptap/react',
+            '@tiptap/starter-kit',
+            '@tiptap/extension-link',
             'lucide-react',
             'react-resizable-panels',
         ],

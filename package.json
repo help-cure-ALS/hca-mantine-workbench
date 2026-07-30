@@ -1,6 +1,6 @@
 {
   "name": "@hca/mantine-workbench",
-  "version": "0.1.4",
+  "version": "0.2.0",
   "description": "Generic Mantine-v9 UI components: theme foundation, resizable panels, main navigation, data grid. No domain logic.",
   "license": "MIT",
   "private": true,
@@ -11,6 +11,11 @@
       "types": "./src/index.ts",
       "import": "./src/index.ts",
       "default": "./src/index.ts"
+    },
+    "./rich-text": {
+      "types": "./src/rich-text/index.ts",
+      "import": "./src/rich-text/index.ts",
+      "default": "./src/rich-text/index.ts"
     },
     "./tokens.css": "./src/tokens.css"
   },
@@ -29,10 +34,20 @@
   "peerDependencies": {
     "@mantine/core": "^9.0.0",
     "@mantine/hooks": "^9.0.0",
+    "@mantine/tiptap": "^9.0.0",
+    "@tiptap/extension-link": ">=3.3.0",
+    "@tiptap/react": ">=3.3.0",
+    "@tiptap/starter-kit": ">=3.3.0",
     "lucide-react": "^1.0.0",
     "react": "^18.0.0 || ^19.0.0",
     "react-dom": "^18.0.0 || ^19.0.0",
     "react-resizable-panels": "^4.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@mantine/tiptap": { "optional": true },
+    "@tiptap/extension-link": { "optional": true },
+    "@tiptap/react": { "optional": true },
+    "@tiptap/starter-kit": { "optional": true }
   },
   "devDependencies": {
     "prettier": "^3.0.0",

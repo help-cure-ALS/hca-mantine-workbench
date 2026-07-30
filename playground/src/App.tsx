@@ -13,7 +13,8 @@ import {
     Text,
     Title,
 } from '@mantine/core';
-import { DataGrid, PageHeader, SearchInput, type Column } from '@hca/mantine-workbench';
+import { CountrySelect, DataGrid, PageHeader, SearchInput, type Column } from '@hca/mantine-workbench';
+import { RichTextEditor } from '@hca/mantine-workbench/rich-text';
 
 /**
  * Visual pre-release check for the workbench. Every section states what
@@ -51,6 +52,8 @@ function Section({ title, expectation, children }: {
 
 export function App() {
     const [switchOn, setSwitchOn] = useState(true);
+    const [country, setCountry] = useState<string | null>('DE');
+    const [richText, setRichText] = useState('<p>Guten Tag <strong>{name}</strong>,</p><p>hier steht ein <em>formatierter</em> Beispieltext mit einem <a href="https://example.org">Link</a>.</p>');
     const [selectValue, setSelectValue] = useState<string | null>('bravo');
     const [multiValue, setMultiValue] = useState<string[]>(['alpha', 'charlie']);
     const [search, setSearch] = useState('');
@@ -117,6 +120,35 @@ export function App() {
                             <Tabs.Tab value="two">Zweiter Tab</Tabs.Tab>
                         </Tabs.List>
                     </Tabs>
+                </Section>
+
+                <Section
+                    title="CountrySelect"
+                    expectation="Durchsuchbarer Länder-Dropdown, deutsche Ländernamen (Intl.DisplayNames), DE/AT/CH oben angepinnt, Wert ist der ISO-Code."
+                >
+                    <Group grow>
+                        <CountrySelect
+                            label="Land"
+                            locale="de"
+                            priorityCountries={['DE', 'AT', 'CH']}
+                            value={country}
+                            onChange={setCountry}
+                        />
+                        <Text size="sm" c="dimmed" mt={28}>Wert: {country ?? '—'}</Text>
+                    </Group>
+                </Section>
+
+                <Section
+                    title="RichTextEditor"
+                    expectation="Toolbar mit Fett/Kursiv/Unterstrichen, Listen, Link, Undo/Redo. Tippen aktualisiert das HTML darunter live."
+                >
+                    <RichTextEditor
+                        label="Vorlage"
+                        value={richText}
+                        onChange={setRichText}
+                        minHeight={140}
+                    />
+                    <Text size="xs" c="dimmed" style={{ wordBreak: 'break-all' }}>{richText}</Text>
                 </Section>
 
                 <Section

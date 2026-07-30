@@ -18,6 +18,7 @@
  * (not brand styling) do live here — currently:
  *   - Switch without the thumb indicator dot
  *   - Select/MultiSelect check icon on the right side of the option
+ *   - input descriptions below the field (inputWrapperOrder)
  * A project can still override them via `extendTheme` (component-level
  * shallow merge, see `./extend.ts`).
  *
@@ -26,6 +27,7 @@
  */
 
 import {
+    Input,
     MultiSelect,
     Select,
     Switch,
@@ -92,6 +94,15 @@ export const baseTheme: MantineThemeOverride = createTheme({
         fontFamily: "var(--font-editorial), var(--font-sans)",
     },
     components: {
+        // House convention: input descriptions render BELOW the field,
+        // not between label and input (Mantine's default) — keeps the
+        // label/field pair visually tight. Applies to every input built
+        // on Input.Wrapper (TextInput, Select, Textarea, ...).
+        InputWrapper: Input.Wrapper.extend({
+            defaultProps: {
+                inputWrapperOrder: ["label", "input", "description", "error"],
+            },
+        }),
         // House convention: plain thumb without the colored indicator dot
         Switch: Switch.extend({
             defaultProps: {

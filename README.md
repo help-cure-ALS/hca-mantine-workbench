@@ -24,6 +24,14 @@ for shared use across the TENOS/HCA ecosystem, usable by anyone.
 - **`components`** — `ConfirmDialog` + `useConfirm`, `PageHeader`,
   `ExpandableText`, `SearchInput`, `ThemeToggle`, `BulkActionBar` +
   `BulkPill` + `BulkSeparator`.
+- **`rich-text`** (separate entry `@hca/mantine-workbench/rich-text`) —
+  `RichTextEditor`, a `@mantine/tiptap` wrapper with a fixed
+  correspondence toolbar (bold/italic/underline, lists, links,
+  undo/redo). Lives on its own subpath so the tiptap peer dependencies
+  (`@mantine/tiptap`, `@tiptap/react`, `@tiptap/starter-kit`,
+  `@tiptap/extension-link` — all optional peers) are only resolved by
+  consumers that actually use it. Import `@mantine/tiptap/styles.css`
+  once in the consumer.
 - **`tokens.css`** — central CSS custom properties with light + dark
   variants under `[data-mantine-color-scheme="dark"]`.
 

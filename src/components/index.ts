@@ -8,6 +8,7 @@
  *   - SearchInput
  *   - ThemeToggle
  *   - BulkActionBar (incl. BulkPill, BulkSeparator)
+ *   - CountrySelect (ISO codes, localized via Intl.DisplayNames)
  *
  * Imports:
  *   - `import { useConfirm, PageHeader, ... } from "@hca/mantine-workbench"`
@@ -37,3 +38,6 @@ export type { ThemeToggleProps } from "./ThemeToggle";
 
 export { BulkActionBar, BulkPill, BulkSeparator } from "./BulkActionBar";
 export type { BulkActionBarProps, BulkPillProps, BulkPillVariant } from "./BulkActionBar";
+
+export { CountrySelect } from "./CountrySelect";
+export type { CountrySelectProps } from "./CountrySelect";

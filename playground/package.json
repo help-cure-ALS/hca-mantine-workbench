@@ -9,6 +9,10 @@
     "dependencies": {
         "@mantine/core": "^9.1.0",
         "@mantine/hooks": "^9.1.0",
+        "@mantine/tiptap": "^9.1.0",
+        "@tiptap/extension-link": "^3.3.0",
+        "@tiptap/react": "^3.3.0",
+        "@tiptap/starter-kit": "^3.3.0",
         "lucide-react": "^1.0.0",
         "react": "^19.2.0",
         "react-dom": "^19.2.0",
