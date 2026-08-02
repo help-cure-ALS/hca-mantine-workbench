@@ -26,14 +26,20 @@
  * `extendTheme(baseTheme, { ...overrides })` — see `./extend.ts`.
  */
 
-import {
-    Input,
-    MultiSelect,
-    Select,
-    Switch,
-    createTheme,
-    type MantineThemeOverride,
-} from "@mantine/core";
+// Nur `createTheme` + Types importieren, KEINE Component-Objekte.
+//
+// Historisch (v0.2.0) haben wir Component-Defaults per
+// `Switch.extend({...})`, `Input.Wrapper.extend({...})` etc. gesetzt.
+// Diese Named-Component-Imports crashen beim Modul-Load im React-
+// Server-Component-Kontext (Next.js layout.tsx), weil Mantine's
+// Client-Only-Wrapper dort keine statischen `.extend`-Members haben:
+//
+//   Cannot read properties of undefined (reading 'extend')
+//
+// Ab v0.2.1 nutzen wir das äquivalente `components: { Name: { ... } }`
+// Objekt-Format von `createTheme`. Kein Component-Import nötig, keine
+// SSR-Falle, gleiche Wirkung wie vorher.
+import { createTheme, type MantineThemeOverride } from "@mantine/core";
 
 /**
  * Font-size scale (~20 % steps).
@@ -98,28 +104,28 @@ export const baseTheme: MantineThemeOverride = createTheme({
         // not between label and input (Mantine's default) — keeps the
         // label/field pair visually tight. Applies to every input built
         // on Input.Wrapper (TextInput, Select, Textarea, ...).
-        InputWrapper: Input.Wrapper.extend({
+        InputWrapper: {
             defaultProps: {
                 inputWrapperOrder: ["label", "input", "description", "error"],
             },
-        }),
+        },
         // House convention: plain thumb without the colored indicator dot
-        Switch: Switch.extend({
+        Switch: {
             defaultProps: {
                 withThumbIndicator: false,
             },
-        }),
+        },
         // House convention: selected-option checkmark on the right,
         // so option labels stay left-aligned without an icon gutter
-        Select: Select.extend({
+        Select: {
             defaultProps: {
                 checkIconPosition: "right",
             },
-        }),
-        MultiSelect: MultiSelect.extend({
+        },
+        MultiSelect: {
             defaultProps: {
                 checkIconPosition: "right",
             },
-        }),
+        },
     },
 });
