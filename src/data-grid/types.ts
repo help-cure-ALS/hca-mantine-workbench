@@ -63,6 +63,29 @@ export interface SortState {
 export type RowSelection = Set<string>;
 
 /**
+ * Group section for grouped rendering. When `sections` is set on the
+ * DataGrid, `data` is derived from the sections and each section gets
+ * a full-width header row inside the same table. Standard grouped-row
+ * pattern (TanStack, ag-Grid, etc.).
+ */
+export interface DataGridSection<T> {
+    /** Stable identifier — used as React key and for collapse state. */
+    key: string;
+    /** Header content shown as a full-width row above the section's data
+     *  rows. Any ReactNode — typical: title + count + meta on the right. */
+    header: ReactNode;
+    /** Rows in this section. */
+    data: T[];
+    /** Whether this section can be collapsed by the user via a chevron
+     *  on the header row. Default `true`. */
+    collapsible?: boolean;
+    /** Initial collapsed state. Default `false`. Controlled expansion
+     *  is currently uncontrolled — the grid keeps its own set of
+     *  collapsed section keys. */
+    defaultCollapsed?: boolean;
+}
+
+/**
  * Props of the DataGrid component itself — exported for tests, docs,
  * and IDE hover.
  */
@@ -70,8 +93,15 @@ export interface DataGridProps<T> {
     /** Column definitions. */
     columns: Column<T>[];
     /** Current page of rows. In server mode = the page slice from the
-     *  backend, in client mode = the whole dataset. */
+     *  backend, in client mode = the whole dataset. Ignored when
+     *  `sections` is provided (in grouped mode the rows come from the
+     *  sections). */
     data: T[];
+    /** Grouped mode: renders sections with a full-width header row
+     *  before each group's rows, all inside a single table (one column
+     *  header on top). When set, `data` is ignored; sort/selection/
+     *  virtualization stay the same. */
+    sections?: DataGridSection<T>[];
     /** Stable id extractor — required for selection + virtualization. */
     getRowId: (row: T) => string;
 

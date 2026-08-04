@@ -26,10 +26,10 @@
  *   doesn't jump when the data arrives.
  */
 
-import { useMemo, useRef, type CSSProperties } from "react";
+import { useMemo, useRef, useState, type CSSProperties } from "react";
 import { Box, Checkbox, Group, Skeleton, Stack, Table, Text, UnstyledButton } from "@mantine/core";
-import { ChevronDown, ChevronUp, ChevronsUpDown } from "lucide-react";
-import type { Column, DataGridProps, RowSelection, SortState } from "./types";
+import { ChevronDown, ChevronRight, ChevronUp, ChevronsUpDown } from "lucide-react";
+import type { Column, DataGridProps, DataGridSection, RowSelection, SortState } from "./types";
 import { nextSortForClick } from "./useGridSort";
 import { useVirtualRows } from "./useVirtualRows";
 
@@ -38,6 +38,7 @@ const TIGHT_WIDTH_THRESHOLD = 48;
 export function DataGrid<T>({
     columns,
     data,
+    sections,
     getRowId,
     sort,
     onSortChange,
@@ -53,6 +54,13 @@ export function DataGrid<T>({
     rowHeight,
     virtualized = false,
 }: DataGridProps<T>) {
+    // In grouped mode the effective data is the concatenation of all
+    // section data (used for selection-all + empty-state detection).
+    const effectiveData = useMemo<T[]>(
+        () => (sections ? sections.flatMap((s) => s.data) : data),
+        [sections, data],
+    );
+
     // The selection column is automatically inserted at the front when the
     // caller sets both `selection` and `onSelectionChange`. To only display
     // selection (without click handling), build a custom column and
@@ -61,10 +69,13 @@ export function DataGrid<T>({
         if (!selection || !onSelectionChange) {
             return columns;
         }
-        return [makeSelectionColumn<T>(data, selection, onSelectionChange, getRowId), ...columns];
-    }, [columns, selection, onSelectionChange, data, getRowId]);
+        return [
+            makeSelectionColumn<T>(effectiveData, selection, onSelectionChange, getRowId),
+            ...columns,
+        ];
+    }, [columns, selection, onSelectionChange, effectiveData, getRowId]);
 
-    if (loading && data.length === 0) {
+    if (loading && effectiveData.length === 0) {
         return (
             <SkeletonTable
                 columns={columnsWithSelect}
@@ -75,11 +86,29 @@ export function DataGrid<T>({
         );
     }
 
-    if (!loading && data.length === 0) {
+    if (!loading && effectiveData.length === 0) {
         return (
             <Stack align="center" justify="center" p="xl" gap="xs">
                 {emptyState ?? <Text c="dimmed">No entries</Text>}
             </Stack>
+        );
+    }
+
+    if (sections) {
+        return (
+            <SectionedView
+                columns={columnsWithSelect}
+                sections={sections}
+                getRowId={getRowId}
+                stickyHeader={stickyHeader}
+                hideHeader={hideHeader}
+                sort={sort}
+                onSortChange={onSortChange}
+                selection={selection}
+                onSelectionChange={onSelectionChange}
+                onRowClick={onRowClick}
+                highlightedRowId={highlightedRowId}
+            />
         );
     }
 
@@ -351,6 +380,228 @@ function VirtualizedView<T>({
                 )}
             </Table>
         </Box>
+    );
+}
+
+// ─── Sectioned view (grouped rows) ─────────────────────────────────
+
+interface SectionedViewProps<T> {
+    columns: Column<T>[];
+    sections: DataGridSection<T>[];
+    getRowId: (row: T) => string;
+    stickyHeader: boolean;
+    hideHeader: boolean;
+    sort?: SortState;
+    onSortChange?: (next: SortState) => void;
+    selection?: RowSelection;
+    onSelectionChange?: (next: RowSelection) => void;
+    onRowClick?: (row: T) => void;
+    highlightedRowId?: string | null;
+}
+
+function SectionedView<T>({
+    columns,
+    sections,
+    getRowId,
+    stickyHeader,
+    hideHeader,
+    sort,
+    onSortChange,
+    selection,
+    onSelectionChange,
+    onRowClick,
+    highlightedRowId,
+}: SectionedViewProps<T>) {
+    // Uncontrolled collapse state. Section defaults come from
+    // `defaultCollapsed`; user clicks flip a section in the local Set.
+    const [collapsed, setCollapsed] = useState<Set<string>>(() => {
+        const initial = new Set<string>();
+        for (const s of sections) {
+            if (s.defaultCollapsed) initial.add(s.key);
+        }
+        return initial;
+    });
+    const toggleCollapsed = (key: string) => {
+        setCollapsed((prev) => {
+            const next = new Set(prev);
+            if (next.has(key)) next.delete(key);
+            else next.add(key);
+            return next;
+        });
+    };
+
+    const hasFlexColumn = columns.some((c) => c.minWidth != null && c.width == null);
+    const tableLayout = hasFlexColumn ? "auto" : "fixed";
+    return (
+        <Table
+            highlightOnHover
+            verticalSpacing={6}
+            horizontalSpacing="md"
+            withRowBorders
+            stickyHeader={stickyHeader}
+            layout={tableLayout}
+        >
+            {!hideHeader && (
+                <Table.Thead>
+                    <Table.Tr>
+                        {columns.map((col) => (
+                            <HeaderCell
+                                key={col.id}
+                                col={col}
+                                sort={sort}
+                                onSortChange={onSortChange}
+                            />
+                        ))}
+                    </Table.Tr>
+                </Table.Thead>
+            )}
+            <Table.Tbody>
+                {sections.map((section) => {
+                    const isCollapsed = collapsed.has(section.key);
+                    // Kollabieren ist opt-in — Standard ist eine statische
+                    // Gruppierung ohne Chevron/Klick-Toggle. Passt zum
+                    // Default-Verhalten der meisten Data-Grids und hält
+                    // die einfachste Nutzung frei von Interaktion.
+                    const collapsible = section.collapsible === true;
+                    return (
+                        <SectionFragment
+                            key={section.key}
+                            section={section}
+                            columns={columns}
+                            isCollapsed={isCollapsed}
+                            collapsible={collapsible}
+                            onToggle={() => toggleCollapsed(section.key)}
+                            getRowId={getRowId}
+                            selection={selection}
+                            onSelectionChange={onSelectionChange}
+                            onRowClick={onRowClick}
+                            highlightedRowId={highlightedRowId}
+                        />
+                    );
+                })}
+            </Table.Tbody>
+        </Table>
+    );
+}
+
+function SectionFragment<T>({
+    section,
+    columns,
+    isCollapsed,
+    collapsible,
+    onToggle,
+    getRowId,
+    selection,
+    onSelectionChange,
+    onRowClick,
+    highlightedRowId,
+}: {
+    section: DataGridSection<T>;
+    columns: Column<T>[];
+    isCollapsed: boolean;
+    collapsible: boolean;
+    onToggle: () => void;
+    getRowId: (row: T) => string;
+    selection?: RowSelection;
+    onSelectionChange?: (next: RowSelection) => void;
+    onRowClick?: (row: T) => void;
+    highlightedRowId?: string | null;
+}) {
+    return (
+        <>
+            <Table.Tr
+                // Mantine `highlightOnHover` gilt für die ganze Table.
+                // Für Section-Header-Zeilen wollen wir keinen Hover-
+                // Wechsel — sonst blitzt der Titel beim Cursor auf.
+                // Über die CSS-Variable pro Row lässt sich das gezielt
+                // deaktivieren, ohne die Table-Prop zu ändern.
+                style={{ ["--table-hover-color" as string]: "transparent" }}
+            >
+                <Table.Td
+                    colSpan={columns.length}
+                    style={{
+                        // Grosszügiger top-padding schafft die visuelle
+                        // Trennung zwischen einer vorherigen Gruppe und
+                        // der neuen Section-Überschrift, ohne dass es
+                        // dazwischen eine hart gezogene Linie braucht.
+                        padding: "20px 16px 8px",
+                        borderBottom: "1px solid var(--mantine-color-default-border)",
+                        background: "transparent",
+                    }}
+                >
+                    <UnstyledButton
+                        component={collapsible ? "button" : "div"}
+                        onClick={collapsible ? onToggle : undefined}
+                        style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
+                            width: "100%",
+                            cursor: collapsible ? "pointer" : "default",
+                            font: "inherit",
+                            color: "inherit",
+                        }}
+                    >
+                        {collapsible &&
+                            (isCollapsed ? (
+                                <ChevronRight size={14} />
+                            ) : (
+                                <ChevronDown size={14} />
+                            ))}
+                        <span style={{ flex: 1, fontWeight: 600, fontSize: 13 }}>
+                            {section.header}
+                        </span>
+                    </UnstyledButton>
+                </Table.Td>
+            </Table.Tr>
+            {!isCollapsed &&
+                section.data.map((row, rowIdx) => {
+                    const id = getRowId(row);
+                    const isHighlighted = highlightedRowId === id;
+                    const isSelected = !!selection?.has(id);
+                    const hasSelection = !!selection && !!onSelectionChange;
+                    const isLastInSection = rowIdx === section.data.length - 1;
+                    const rowBackground = isSelected
+                        ? "var(--mantine-workbench-row-selected-bg, #f3e8fb)"
+                        : isHighlighted
+                          ? "var(--mantine-color-default-hover)"
+                          : undefined;
+                    const handleRowClick =
+                        onRowClick || hasSelection
+                            ? () => {
+                                  if (hasSelection) {
+                                      onSelectionChange!(new Set([id]));
+                                  }
+                                  if (onRowClick) {
+                                      onRowClick(row);
+                                  }
+                              }
+                            : undefined;
+                    return (
+                        <Table.Tr
+                            key={id}
+                            data-selected={isSelected || isHighlighted}
+                            onClick={handleRowClick}
+                            style={{
+                                cursor: handleRowClick ? "pointer" : undefined,
+                                background: rowBackground,
+                                // Letzte Row jeder Section: keine untere
+                                // Zeilenlinie. Mantine `withRowBorders`
+                                // setzt die Border direkt auf der Tr,
+                                // deshalb muss der Override hier sitzen
+                                // (nicht auf der Td).
+                                ...(isLastInSection
+                                    ? { borderBottom: "none" }
+                                    : {}),
+                            }}
+                        >
+                            {columns.map((col) => (
+                                <BodyCell key={col.id} col={col} row={row} />
+                            ))}
+                        </Table.Tr>
+                    );
+                })}
+        </>
     );
 }
 

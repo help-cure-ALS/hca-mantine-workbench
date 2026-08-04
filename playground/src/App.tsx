@@ -13,7 +13,7 @@ import {
     Text,
     Title,
 } from '@mantine/core';
-import { CountrySelect, DataGrid, PageHeader, SearchInput, type Column } from '@hca/mantine-workbench';
+import { CountrySelect, DataGrid, PageHeader, SearchInput, type Column, type RowSelection } from '@hca/mantine-workbench';
 import { RichTextEditor } from '@hca/mantine-workbench/rich-text';
 
 /**
@@ -57,6 +57,7 @@ export function App() {
     const [selectValue, setSelectValue] = useState<string | null>('bravo');
     const [multiValue, setMultiValue] = useState<string[]>(['alpha', 'charlie']);
     const [search, setSearch] = useState('');
+    const [sectionSelection, setSectionSelection] = useState<RowSelection>(new Set());
 
     return (
         <Box maw={860} mx="auto" p="xl">
@@ -164,37 +165,49 @@ export function App() {
                 </Section>
 
                 <Section
-                    title="DataGrid — gruppiert (hideHeader)"
-                    expectation="Header sitzt einmal ganz oben. Gruppen erscheinen als schlichte Zwischentitel (bold, mit Linie darunter). Nur die erste DataGrid zeigt den Header, die folgenden nutzen hideHeader={true}."
+                    title="DataGrid — gruppiert (sections)"
+                    expectation="Ein einziges Table mit EINER Kopfzeile ganz oben. Gruppen erscheinen als vollbreite Zeilen dazwischen (bold, mit Chevron und Linie darunter). Klick auf den Gruppen-Header klappt die Sektion ein/aus. Selection-All-Checkbox im Header wählt alle sichtbaren Rows über alle Gruppen."
                 >
-                    {[
-                        { key: 'active', label: 'Aktiv', rows: ROWS.slice(0, 2) },
-                        { key: 'pending', label: 'Wartend', rows: ROWS.slice(2, 4) },
-                        { key: 'closed', label: 'Geschlossen', rows: ROWS.slice(4) },
-                    ].map((group, gi) => (
-                        <div key={group.key}>
-                            <div
-                                style={{
-                                    display: 'flex',
-                                    justifyContent: 'space-between',
-                                    alignItems: 'baseline',
-                                    padding: '12px 16px 6px',
-                                    borderBottom: '1px solid var(--mantine-color-default-border)',
-                                }}
-                            >
-                                <div style={{ display: 'flex', gap: 8, alignItems: 'baseline' }}>
-                                    <Text fw={500} fz={13}>{group.label}</Text>
-                                    <Text fz={12} c="dimmed" ff="monospace">{group.rows.length}</Text>
-                                </div>
-                            </div>
-                            <DataGrid<Row>
-                                columns={COLUMNS}
-                                data={group.rows}
-                                getRowId={(row) => row.id}
-                                hideHeader={gi > 0}
-                            />
-                        </div>
-                    ))}
+                    <DataGrid<Row>
+                        columns={COLUMNS}
+                        data={[]}
+                        getRowId={(row) => row.id}
+                        selection={sectionSelection}
+                        onSelectionChange={setSectionSelection}
+                        sections={[
+                            {
+                                key: 'active',
+                                header: (
+                                    <Group gap={8} align="baseline">
+                                        <Text fw={500} fz={13}>Aktiv</Text>
+                                        <Text fz={12} c="dimmed" ff="monospace">{ROWS.slice(0, 2).length}</Text>
+                                    </Group>
+                                ),
+                                data: ROWS.slice(0, 2),
+                            },
+                            {
+                                key: 'pending',
+                                header: (
+                                    <Group gap={8} align="baseline">
+                                        <Text fw={500} fz={13}>Wartend</Text>
+                                        <Text fz={12} c="dimmed" ff="monospace">{ROWS.slice(2, 4).length}</Text>
+                                    </Group>
+                                ),
+                                data: ROWS.slice(2, 4),
+                            },
+                            {
+                                key: 'closed',
+                                header: (
+                                    <Group gap={8} align="baseline">
+                                        <Text fw={500} fz={13}>Geschlossen</Text>
+                                        <Text fz={12} c="dimmed" ff="monospace">{ROWS.slice(4).length}</Text>
+                                    </Group>
+                                ),
+                                data: ROWS.slice(4),
+                                defaultCollapsed: true,
+                            },
+                        ]}
+                    />
                 </Section>
             </Stack>
         </Box>
