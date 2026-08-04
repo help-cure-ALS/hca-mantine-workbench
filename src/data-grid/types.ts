@@ -106,6 +106,9 @@ export interface DataGridProps<T> {
     // ─── Layout ───────────────────────────────────────────────
     /** Sticky header. Default `true`. */
     stickyHeader?: boolean;
+    /** Suppress the header row entirely. Useful when stacking multiple
+     *  DataGrids under one shared header (e.g. grouped views). Default `false`. */
+    hideHeader?: boolean;
     /** Fixed row height in px. Required with `virtualized={true}`. */
     rowHeight?: number;
     /** Enable virtualization — recommended from ~1000 rows.

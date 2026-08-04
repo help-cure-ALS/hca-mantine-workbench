@@ -49,6 +49,7 @@ export function DataGrid<T>({
     total,
     emptyState,
     stickyHeader = true,
+    hideHeader = false,
     rowHeight,
     virtualized = false,
 }: DataGridProps<T>) {
@@ -65,7 +66,12 @@ export function DataGrid<T>({
 
     if (loading && data.length === 0) {
         return (
-            <SkeletonTable columns={columnsWithSelect} rowCount={12} stickyHeader={stickyHeader} />
+            <SkeletonTable
+                columns={columnsWithSelect}
+                rowCount={12}
+                stickyHeader={stickyHeader}
+                hideHeader={hideHeader}
+            />
         );
     }
 
@@ -85,6 +91,7 @@ export function DataGrid<T>({
                 getRowId={getRowId}
                 rowHeight={rowHeight}
                 stickyHeader={stickyHeader}
+                hideHeader={hideHeader}
                 sort={sort}
                 onSortChange={onSortChange}
                 selection={selection}
@@ -103,6 +110,7 @@ export function DataGrid<T>({
             getRowId={getRowId}
             rowHeight={rowHeight}
             stickyHeader={stickyHeader}
+            hideHeader={hideHeader}
             sort={sort}
             onSortChange={onSortChange}
             selection={selection}
@@ -122,6 +130,7 @@ interface ViewProps<T> {
     getRowId: (row: T) => string;
     rowHeight?: number;
     stickyHeader: boolean;
+    hideHeader: boolean;
     sort?: SortState;
     onSortChange?: (next: SortState) => void;
     selection?: RowSelection;
@@ -137,6 +146,7 @@ function PlainView<T>({
     getRowId,
     rowHeight,
     stickyHeader,
+    hideHeader,
     sort,
     onSortChange,
     selection,
@@ -160,18 +170,20 @@ function PlainView<T>({
             stickyHeader={stickyHeader}
             layout={tableLayout}
         >
-            <Table.Thead>
-                <Table.Tr>
-                    {columns.map((col) => (
-                        <HeaderCell
-                            key={col.id}
-                            col={col}
-                            sort={sort}
-                            onSortChange={onSortChange}
-                        />
-                    ))}
-                </Table.Tr>
-            </Table.Thead>
+            {!hideHeader && (
+                <Table.Thead>
+                    <Table.Tr>
+                        {columns.map((col) => (
+                            <HeaderCell
+                                key={col.id}
+                                col={col}
+                                sort={sort}
+                                onSortChange={onSortChange}
+                            />
+                        ))}
+                    </Table.Tr>
+                </Table.Thead>
+            )}
             <Table.Tbody>
                 {data.map((row) => {
                     const id = getRowId(row);
@@ -227,6 +239,7 @@ function VirtualizedView<T>({
     getRowId,
     rowHeight,
     stickyHeader,
+    hideHeader,
     sort,
     onSortChange,
     selection,
@@ -261,18 +274,20 @@ function VirtualizedView<T>({
                 stickyHeader={stickyHeader}
                 style={{ tableLayout }}
             >
-                <Table.Thead>
-                    <Table.Tr>
-                        {columns.map((col) => (
-                            <HeaderCell
-                                key={col.id}
-                                col={col}
-                                sort={sort}
-                                onSortChange={onSortChange}
-                            />
-                        ))}
-                    </Table.Tr>
-                </Table.Thead>
+                {!hideHeader && (
+                    <Table.Thead>
+                        <Table.Tr>
+                            {columns.map((col) => (
+                                <HeaderCell
+                                    key={col.id}
+                                    col={col}
+                                    sort={sort}
+                                    onSortChange={onSortChange}
+                                />
+                            ))}
+                        </Table.Tr>
+                    </Table.Thead>
+                )}
                 <Table.Tbody
                     style={{
                         display: "block",
@@ -554,10 +569,12 @@ function SkeletonTable<T>({
     columns,
     rowCount,
     stickyHeader,
+    hideHeader,
 }: {
     columns: Column<T>[];
     rowCount: number;
     stickyHeader: boolean;
+    hideHeader: boolean;
 }) {
     const widthFor = (rowIdx: number, colIdx: number, hasWidth: boolean) => {
         if (!hasWidth) {
@@ -575,13 +592,15 @@ function SkeletonTable<T>({
             stickyHeader={stickyHeader}
             layout="fixed"
         >
-            <Table.Thead>
-                <Table.Tr>
-                    {columns.map((col) => (
-                        <HeaderCell key={col.id} col={col} />
-                    ))}
-                </Table.Tr>
-            </Table.Thead>
+            {!hideHeader && (
+                <Table.Thead>
+                    <Table.Tr>
+                        {columns.map((col) => (
+                            <HeaderCell key={col.id} col={col} />
+                        ))}
+                    </Table.Tr>
+                </Table.Thead>
+            )}
             <Table.Tbody>
                 {Array.from({ length: rowCount }).map((_, rowIdx) => (
                     <Table.Tr key={`skeleton-${rowIdx}`}>

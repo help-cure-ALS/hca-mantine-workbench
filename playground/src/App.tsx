@@ -162,6 +162,40 @@ export function App() {
                         getRowId={(row) => row.id}
                     />
                 </Section>
+
+                <Section
+                    title="DataGrid — gruppiert (hideHeader)"
+                    expectation="Header sitzt einmal ganz oben. Gruppen erscheinen als schlichte Zwischentitel (bold, mit Linie darunter). Nur die erste DataGrid zeigt den Header, die folgenden nutzen hideHeader={true}."
+                >
+                    {[
+                        { key: 'active', label: 'Aktiv', rows: ROWS.slice(0, 2) },
+                        { key: 'pending', label: 'Wartend', rows: ROWS.slice(2, 4) },
+                        { key: 'closed', label: 'Geschlossen', rows: ROWS.slice(4) },
+                    ].map((group, gi) => (
+                        <div key={group.key}>
+                            <div
+                                style={{
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'baseline',
+                                    padding: '12px 16px 6px',
+                                    borderBottom: '1px solid var(--mantine-color-default-border)',
+                                }}
+                            >
+                                <div style={{ display: 'flex', gap: 8, alignItems: 'baseline' }}>
+                                    <Text fw={500} fz={13}>{group.label}</Text>
+                                    <Text fz={12} c="dimmed" ff="monospace">{group.rows.length}</Text>
+                                </div>
+                            </div>
+                            <DataGrid<Row>
+                                columns={COLUMNS}
+                                data={group.rows}
+                                getRowId={(row) => row.id}
+                                hideHeader={gi > 0}
+                            />
+                        </div>
+                    ))}
+                </Section>
             </Stack>
         </Box>
     );
