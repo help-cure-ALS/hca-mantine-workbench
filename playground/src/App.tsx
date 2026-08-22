@@ -58,6 +58,11 @@ export function App() {
     const [multiValue, setMultiValue] = useState<string[]>(['alpha', 'charlie']);
     const [search, setSearch] = useState('');
     const [sectionSelection, setSectionSelection] = useState<RowSelection>(new Set());
+    const [reloading, setReloading] = useState(false);
+    function simulateReload() {
+        setReloading(true);
+        setTimeout(() => setReloading(false), 1500);
+    }
 
     return (
         <Box maw={860} mx="auto" p="xl">
@@ -161,6 +166,23 @@ export function App() {
                         columns={COLUMNS}
                         data={ROWS.filter((row) => row.name.toLowerCase().includes(search.toLowerCase()))}
                         getRowId={(row) => row.id}
+                    />
+                </Section>
+
+                <Section
+                    title="DataGrid — Reload-Overlay (loading + data)"
+                    expectation={'Klick auf "Reload simulieren" setzt loading=true für 1,5 s. Bestehende Rows bleiben sichtbar, werden aber gedimmt und blockieren Klicks; ein Spinner erscheint mittig. Ohne bestehende Daten würde stattdessen der Skeleton greifen.'}
+                >
+                    <Group>
+                        <Button onClick={simulateReload} disabled={reloading}>
+                            {reloading ? 'Lädt …' : 'Reload simulieren'}
+                        </Button>
+                    </Group>
+                    <DataGrid<Row>
+                        columns={COLUMNS}
+                        data={ROWS}
+                        getRowId={(row) => row.id}
+                        loading={reloading}
                     />
                 </Section>
 
