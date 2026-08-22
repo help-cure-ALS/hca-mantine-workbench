@@ -27,7 +27,7 @@
  */
 
 import { useMemo, useRef, useState, type CSSProperties } from "react";
-import { Box, Checkbox, Group, LoadingOverlay, Skeleton, Stack, Table, Text, UnstyledButton } from "@mantine/core";
+import { Box, Checkbox, Group, Loader, Skeleton, Stack, Table, Text, UnstyledButton } from "@mantine/core";
 import { ChevronDown, ChevronRight, ChevronUp, ChevronsUpDown } from "lucide-react";
 import type { Column, DataGridProps, DataGridSection, RowSelection, SortState } from "./types";
 import { nextSortForClick } from "./useGridSort";
@@ -143,19 +143,38 @@ export function DataGrid<T>({
     );
 
     // Re-fetch-Zustand: bestehende Rows bleiben sichtbar, werden aber
-    // gedimmt und Klick-blockiert; ein zentraler Spinner signalisiert,
-    // dass neue Daten geladen werden. Standard-Muster für Filter-/
-    // Sort-Wechsel. Mantine `LoadingOverlay` erledigt das Overlay,
-    // die Pointer-Blockade und den Spinner in einem.
+    // gedimmt und Klick-blockiert; ein Spinner bleibt beim Scrollen im
+    // Viewport sichtbar. Standard-Muster für Filter-/Sort-Wechsel.
+    // Wir bauen das Overlay manuell statt Mantine `LoadingOverlay`,
+    // weil dessen Spinner absolut zum Overlay-Container zentriert wird
+    // — bei sehr langen Tabellen läge er tief unten und wäre unsichtbar.
+    // Der Spinner sitzt `position: sticky` und bleibt so im äusseren
+    // Scroll-Container mittig sichtbar.
     if (loading) {
         return (
             <Box style={{ position: "relative" }}>
-                <LoadingOverlay
-                    visible
-                    zIndex={2}
-                    overlayProps={{ blur: 0, backgroundOpacity: 0.35 }}
-                    loaderProps={{ size: "sm" }}
+                <div
+                    aria-hidden
+                    style={{
+                        position: "absolute",
+                        inset: 0,
+                        background: "rgba(255, 255, 255, 0.55)",
+                        zIndex: 5,
+                    }}
                 />
+                <div
+                    style={{
+                        position: "sticky",
+                        top: "50%",
+                        display: "flex",
+                        justifyContent: "center",
+                        zIndex: 6,
+                        pointerEvents: "none",
+                        height: 0,
+                    }}
+                >
+                    <Loader size="sm" />
+                </div>
                 {viewNode}
             </Box>
         );
