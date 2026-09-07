@@ -27,7 +27,13 @@ import {
  * overflows the control buttons.
  */
 function lucide(Icon: LucideIcon) {
-    return function ControlIcon({ className, style }: { className?: string; style?: CSSProperties }) {
+    return function ControlIcon({
+        className,
+        style,
+    }: {
+        className?: string;
+        style?: CSSProperties;
+    }) {
         return <Icon className={className} style={style} strokeWidth={1.75} />;
     };
 }
@@ -81,10 +87,7 @@ export function RichTextEditor({
     disabled = false,
 }: RichTextEditorProps) {
     const editor = useEditor({
-        extensions: [
-            StarterKit,
-            Link.configure({ openOnClick: false }),
-        ],
+        extensions: [StarterKit, Link.configure({ openOnClick: false })],
         content: value,
         editable: !disabled,
         onUpdate: ({ editor: instance }) => {

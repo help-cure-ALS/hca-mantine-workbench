@@ -18,7 +18,7 @@
 
 // Core grid
 export { DataGrid } from "./DataGrid";
-export type { Column, SortState, RowSelection, DataGridProps } from "./types";
+export type { Column, SortState, RowSelection, DataGridProps, DataGridSection } from "./types";
 
 // Sort + selection hooks
 export { useGridSort, nextSortForClick } from "./useGridSort";

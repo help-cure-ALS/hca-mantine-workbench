@@ -27,7 +27,17 @@
  */
 
 import { useMemo, useRef, useState, type CSSProperties } from "react";
-import { Box, Checkbox, Group, Loader, Skeleton, Stack, Table, Text, UnstyledButton } from "@mantine/core";
+import {
+    Box,
+    Checkbox,
+    Group,
+    Loader,
+    Skeleton,
+    Stack,
+    Table,
+    Text,
+    UnstyledButton,
+} from "@mantine/core";
 import { ChevronDown, ChevronRight, ChevronUp, ChevronsUpDown } from "lucide-react";
 import type { Column, DataGridProps, DataGridSection, RowSelection, SortState } from "./types";
 import { nextSortForClick } from "./useGridSort";
@@ -574,11 +584,7 @@ function SectionFragment<T>({
                         }}
                     >
                         {collapsible &&
-                            (isCollapsed ? (
-                                <ChevronRight size={14} />
-                            ) : (
-                                <ChevronDown size={14} />
-                            ))}
+                            (isCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />)}
                         <span style={{ flex: 1, fontWeight: 600, fontSize: 13 }}>
                             {section.header}
                         </span>
@@ -621,9 +627,7 @@ function SectionFragment<T>({
                                 // setzt die Border direkt auf der Tr,
                                 // deshalb muss der Override hier sitzen
                                 // (nicht auf der Td).
-                                ...(isLastInSection
-                                    ? { borderBottom: "none" }
-                                    : {}),
+                                ...(isLastInSection ? { borderBottom: "none" } : {}),
                             }}
                         >
                             {columns.map((col) => (

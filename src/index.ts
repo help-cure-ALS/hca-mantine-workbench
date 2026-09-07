@@ -1,7 +1,7 @@
 /**
  * @hca/mantine-workbench — Public API.
  *
- * Re-exports per Welle:
+ * Re-exports per wave:
  *   - UI.1: theme  (baseTheme, extendTheme, baseFontSizes, baseLineHeights)
  *   - UI.2: layout (ResizableGroup, ResizablePanel, ResizableHandle, usePanelRef)
  *   - UI.3: layout (MainNav, MainNavHeaderButton, useMainNavCollapsed)
@@ -10,8 +10,10 @@
  *            RowSelection)
  *   - UI.5: components (ConfirmDialog, PageHeader, ExpandableText,
  *            SearchInput, ThemeToggle, BulkActionBar)
+ *   - UI.7: data-grid (hideHeader, DataGridSection / grouped rows,
+ *            loading overlay)
  *
- * Aktuelle Welle: UI.5 (kleine generische Components).
+ * Current wave: UI.7 (grouped rows + loading states).
  */
 
 export * from "./theme";
