@@ -562,7 +562,12 @@ export function FormDrawer({
                 >
                     <Stack gap={4} style={{ flex: 1, minWidth: 0 }}>
                         <Drawer.Title>
-                            <Text fz={18} fw={600} lh={1.3}>
+                            {/* span, not the default p: Drawer.Title is
+                                an h2, whose content model is phrasing
+                                content. A p (or any div a caller passes
+                                in a title node) is invalid there and
+                                trips React's hydration check. */}
+                            <Text component="span" display="block" fz={18} fw={600} lh={1.3}>
                                 {title}
                             </Text>
                         </Drawer.Title>
