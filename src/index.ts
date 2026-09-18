@@ -18,8 +18,10 @@
  *   - UI.10: fix — a closed, unstacked FormDrawer dimmed the page
  *   - UI.11: data-grid (FilterPanelItem.count optional — a filter
  *            without a trustworthy count renders without a number)
+ *   - UI.12: components (FormDialog — the ConfirmDialog shell around
+ *            an arbitrary form)
  *
- * Current wave: UI.11.
+ * Current wave: UI.12.
  */
 
 export * from "./theme";

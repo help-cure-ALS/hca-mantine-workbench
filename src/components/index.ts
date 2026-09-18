@@ -29,6 +29,9 @@ export type {
 export { DialogCloseButton } from "./DialogCloseButton";
 export type { DialogCloseButtonProps } from "./DialogCloseButton";
 
+export { FormDialog } from "./FormDialog";
+export type { FormDialogProps } from "./FormDialog";
+
 export { FormDrawer } from "./FormDrawer";
 export type { FormDrawerProps, FormDrawerDiscardConfirm } from "./FormDrawer";
 
