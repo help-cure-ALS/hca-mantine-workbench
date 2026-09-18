@@ -21,9 +21,31 @@ for shared use across the TENOS/HCA ecosystem, usable by anyone.
   LoC virtualizer, no TanStack), `Column<T>`, `useGridSort`,
   `useRowSelection`, `FilterPanel`, `DataGridLayout` (three-slot
   resizable layout shell).
-- **`components`** — `ConfirmDialog` + `useConfirm`, `PageHeader`,
-  `ExpandableText`, `SearchInput`, `ThemeToggle`, `BulkActionBar` +
-  `BulkPill` + `BulkSeparator`.
+- **`components`** — `ConfirmDialog` + `useConfirm`
+  (+ `useOptionalConfirm` for components that ask only sometimes),
+  `FormDrawer`, `DialogCloseButton`, `PageHeader`, `ExpandableText`,
+  `SearchInput`, `ThemeToggle`, `BulkActionBar` + `BulkPill` +
+  `BulkSeparator`.
+
+  `FormDrawer` is the shell every edit form gets: a scrolling body with
+  a footer that stays put, an error slot, and a lock on every way out
+  while the form is being saved. A dirty form asks before it is thrown
+  away — including on a click beside the drawer, which is how unsaved
+  work usually gets lost. `width` takes a Mantine size or a CSS width
+  and defaults to 740px;
+  `resizable` adds a drag handle for forms that sometimes need more
+  room, and `onWidthChange` reports the result if the consumer wants to
+  remember it. The submit button is `teal` by default rather than the
+  theme's primary: saving is the affirmative action, and the primary
+  colour is also the colour of every neutral button. A drawer opened
+  from inside another one takes `stackId` and sits in Mantine's
+  `<Drawer.Stack>`, so only the top one dims the page, traps focus and
+  answers Escape.
+
+  `DialogCloseButton` is the filled round close button those panels
+  use — `ConfirmDialog` carries the same one, which is why that dialog
+  is composed from `Modal.Root`: a `Modal` will style its built-in close
+  button but not let another component take its place.
 - **`rich-text`** (separate entry `@hca/mantine-workbench/rich-text`) —
   `RichTextEditor`, a `@mantine/tiptap` wrapper with a fixed
   correspondence toolbar (bold/italic/underline, lists, links,

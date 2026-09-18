@@ -127,5 +127,29 @@ export const baseTheme: MantineThemeOverride = createTheme({
                 checkIconPosition: "right",
             },
         },
+        // House convention: a floating list casts a shadow.
+        //
+        // Mantine leaves `shadow` unset, so a dropdown arrives as a
+        // white panel with a hairline border on a white page — on a
+        // form it is hard to tell where the field ends and the options
+        // begin. The shadow is the only thing that says "this is above
+        // the page, and it is temporary".
+        //
+        // Set on `Combobox` rather than on each input: Select,
+        // MultiSelect, Autocomplete and TagsInput all render one, and
+        // it passes the prop straight through to its `Popover`.
+        // `Popover` itself is left alone — it carries hovercards and
+        // tooltips too, and not all of those want a shadow.
+        Combobox: {
+            defaultProps: {
+                shadow: "md",
+            },
+        },
+        // The same argument, same reason: a menu is a floating list.
+        Menu: {
+            defaultProps: {
+                shadow: "md",
+            },
+        },
     },
 });

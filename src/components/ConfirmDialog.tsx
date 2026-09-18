@@ -40,6 +40,11 @@
  * caller can override them per dialog via `cancelLabel` / `confirmLabel`,
  * or supply localized fallbacks via the provider's
  * `defaultCancelLabel` / `defaultConfirmLabel` props.
+ *
+ * The dialog is composed from `Modal.Root` rather than the shorthand,
+ * so its corner carries the same `DialogCloseButton` as the drawers. A
+ * `Modal` will style its built-in close button through
+ * `closeButtonProps` but will not let another component take its place.
  */
 
 import {
@@ -52,6 +57,7 @@ import {
     type ReactNode,
 } from "react";
 import { Button, Group, Modal, Stack, Text, Textarea } from "@mantine/core";
+import { DialogCloseButton } from "./DialogCloseButton";
 
 export type ConfirmVariant = "default" | "destructive";
 
@@ -94,9 +100,40 @@ export function useConfirm(): ConfirmFn {
     return ctx;
 }
 
+/**
+ * The same context, for components that would *like* to ask but must
+ * still work without a provider.
+ *
+ * `useConfirm` throws by design: a component that calls it has the
+ * dialog as its whole point, and a silent no-op there would mean a
+ * delete happening without the question. A component that only asks
+ * under one condition — `FormDrawer`, when the form is dirty — is a
+ * different case. Making it throw would turn an optional courtesy into
+ * a hard dependency on the provider for every consumer.
+ *
+ * Callers must handle `null` by doing whatever they would have done on
+ * "yes", so that a missing provider costs the question, not the action.
+ */
+export function useOptionalConfirm(): ConfirmFn | null {
+    return useContext(ConfirmContext);
+}
+
 interface PendingConfirm extends ConfirmOptions {
     resolve: (result: ConfirmResult) => void;
 }
+
+/**
+ * Above Mantine's modal layer (200) on purpose.
+ *
+ * A stacked drawer takes `calc(200 + depth + 1)`, so at the default the
+ * confirm sat behind the second drawer's dim — visible as a darkened
+ * dialog nobody could click. This dialog is always the answer to
+ * something already on screen, so it belongs above whatever asked.
+ */
+const CONFIRM_Z_INDEX = 400;
+
+/** Keeps a one-line confirm from collapsing into a strip. */
+const DIALOG_MIN_HEIGHT = 150;
 
 export interface ConfirmDialogProviderProps {
     children: ReactNode;
@@ -106,12 +143,21 @@ export interface ConfirmDialogProviderProps {
     /** Default label for the confirm button when the caller does not
      *  supply `confirmLabel` per dialog. Default `"Confirm"`. */
     defaultConfirmLabel?: string;
+    /**
+     * Stacking order. Raise it if the app puts something above 400 that
+     * a confirm still has to sit on top of.
+     */
+    zIndex?: number;
+    /** Accessible name for the close button. Defaults to `"Close"`. */
+    closeLabel?: string;
 }
 
 export function ConfirmDialogProvider({
     children,
     defaultCancelLabel = "Cancel",
     defaultConfirmLabel = "Confirm",
+    zIndex = CONFIRM_Z_INDEX,
+    closeLabel = "Close",
 }: ConfirmDialogProviderProps) {
     // Only one dialog at a time. If a second `confirm()` fires while the
     // first is still open, the previous promise auto-resolves as "not
@@ -164,54 +210,99 @@ export function ConfirmDialogProvider({
     return (
         <ConfirmContext.Provider value={confirm}>
             {children}
-            <Modal opened={isOpen} onClose={onCancel} title={pending?.title} centered size="md">
-                {pending && (
-                    <Stack gap="md">
-                        {pending.description && (
-                            <Text size="sm" c="dimmed">
-                                {pending.description}
-                            </Text>
-                        )}
+            <Modal.Root
+                opened={isOpen}
+                onClose={onCancel}
+                centered
+                size="md"
+                zIndex={zIndex}
+                // `styles` on the root, not `style` on the parts:
+                // `ModalContent` hands the same `style` object to both
+                // the dialog and the fixed wrapper that centres it — the
+                // same trap `DrawerContent` sets. Keyed styles reach one
+                // element each, and the root is where the whole set can
+                // be declared together.
+                styles={{
+                    // A floor, so a one-line question is still a dialog
+                    // and not a strip, plus the column the footer needs
+                    // to be pushed down inside.
+                    content: {
+                        minHeight: DIALOG_MIN_HEIGHT,
+                        display: "flex",
+                        flexDirection: "column",
+                    },
+                    body: { flex: 1, display: "flex", flexDirection: "column" },
+                }}
+            >
+                <Modal.Overlay />
+                <Modal.Content>
+                    <Modal.Header>
+                        {/* Mantine's own title is `regular`. Matched to
+                            the drawer's so both headers read alike. */}
+                        <Modal.Title fw={600}>{pending?.title}</Modal.Title>
+                        <DialogCloseButton
+                            onClick={onCancel}
+                            label={closeLabel}
+                            size="md"
+                            // Optically centred against the title's cap
+                            // height rather than its line box.
+                            style={{ marginTop: -3 }}
+                        />
+                    </Modal.Header>
+                    <Modal.Body>
+                        {pending && (
+                            <Stack gap="md" style={{ flex: 1 }}>
+                                {pending.description && (
+                                    <Text size="sm" c="dimmed">
+                                        {pending.description}
+                                    </Text>
+                                )}
 
-                        {pending.prompt && (
-                            <Textarea
-                                ref={textareaRef}
-                                value={commentValue}
-                                onChange={(e) => setCommentValue(e.currentTarget.value)}
-                                placeholder={pending.prompt.placeholder}
-                                label={pending.prompt.label}
-                                required={pending.prompt.required}
-                                withAsterisk={pending.prompt.required}
-                                rows={3}
-                                autosize
-                                minRows={3}
-                                maxRows={8}
-                                onKeyDown={(e) => {
-                                    // Cmd/Ctrl+Enter submits — usual shortcut for multiline
-                                    // comment inputs.
-                                    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-                                        e.preventDefault();
-                                        onConfirm();
-                                    }
-                                }}
-                            />
-                        )}
+                                {pending.prompt && (
+                                    <Textarea
+                                        ref={textareaRef}
+                                        value={commentValue}
+                                        onChange={(e) => setCommentValue(e.currentTarget.value)}
+                                        placeholder={pending.prompt.placeholder}
+                                        label={pending.prompt.label}
+                                        required={pending.prompt.required}
+                                        withAsterisk={pending.prompt.required}
+                                        rows={3}
+                                        autosize
+                                        minRows={3}
+                                        maxRows={8}
+                                        onKeyDown={(e) => {
+                                            // Cmd/Ctrl+Enter submits — usual shortcut for multiline
+                                            // comment inputs.
+                                            if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+                                                e.preventDefault();
+                                                onConfirm();
+                                            }
+                                        }}
+                                    />
+                                )}
 
-                        <Group justify="flex-end" gap="sm">
-                            <Button variant="default" onClick={onCancel}>
-                                {pending.cancelLabel ?? defaultCancelLabel}
-                            </Button>
-                            <Button
-                                onClick={onConfirm}
-                                disabled={!canConfirm}
-                                color={variant === "destructive" ? "red" : undefined}
-                            >
-                                {pending.confirmLabel ?? defaultConfirmLabel}
-                            </Button>
-                        </Group>
-                    </Stack>
-                )}
-            </Modal>
+                                {/* `auto` eats whatever height the
+                                    minimum left over, so the buttons sit
+                                    on the floor of the dialog instead of
+                                    hanging under the question. */}
+                                <Group justify="flex-end" gap="sm" mt="auto">
+                                    <Button variant="default" onClick={onCancel}>
+                                        {pending.cancelLabel ?? defaultCancelLabel}
+                                    </Button>
+                                    <Button
+                                        onClick={onConfirm}
+                                        disabled={!canConfirm}
+                                        color={variant === "destructive" ? "red" : undefined}
+                                    >
+                                        {pending.confirmLabel ?? defaultConfirmLabel}
+                                    </Button>
+                                </Group>
+                            </Stack>
+                        )}
+                    </Modal.Body>
+                </Modal.Content>
+            </Modal.Root>
         </ConfirmContext.Provider>
     );
 }

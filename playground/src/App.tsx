@@ -3,6 +3,8 @@ import {
     Badge,
     Box,
     Button,
+    TextInput,
+    Textarea,
     Group,
     MultiSelect,
     Paper,
@@ -13,7 +15,8 @@ import {
     Text,
     Title,
 } from '@mantine/core';
-import { CountrySelect, DataGrid, PageHeader, SearchInput, type Column, type RowSelection } from '@hca/mantine-workbench';
+import { Drawer, useDrawersStack } from '@mantine/core';
+import { CountrySelect, DataGrid, FormDrawer, PageHeader, SearchInput, type Column, type RowSelection } from '@hca/mantine-workbench';
 import { RichTextEditor } from '@hca/mantine-workbench/rich-text';
 
 /**
@@ -58,6 +61,14 @@ export function App() {
     const [multiValue, setMultiValue] = useState<string[]>(['alpha', 'charlie']);
     const [search, setSearch] = useState('');
     const [sectionSelection, setSectionSelection] = useState<RowSelection>(new Set());
+    const drawers = useDrawersStack(['program', 'category', 'sibling']);
+    const [drawerName, setDrawerName] = useState('');
+    const [categoryName, setCategoryName] = useState('');
+    const [siblingName, setSiblingName] = useState('');
+    const [drawerSaving, setDrawerSaving] = useState(false);
+    const [drawerError, setDrawerError] = useState<string | null>(null);
+    const [drawerResizable, setDrawerResizable] = useState(false);
+    const [drawerWidth, setDrawerWidth] = useState<number | null>(null);
     const [reloading, setReloading] = useState(false);
     function simulateReload() {
         setReloading(true);
@@ -167,6 +178,140 @@ export function App() {
                         data={ROWS.filter((row) => row.name.toLowerCase().includes(search.toLowerCase()))}
                         getRowId={(row) => row.id}
                     />
+                </Section>
+
+                <Section
+                    title="FormDrawer"
+                    expectation="Rechter Drawer, 740 px. Titel 18px/600, runder grauer Schließen-Knopf, Speichern teal. Felder scrollen, die Fußzeile bleibt stehen. Nach einer Eingabe fragt JEDER Schließweg nach — Knopf, Escape und Klick daneben. Speichern sperrt zwei Sekunden lang alle drei. Geschachtelt: die Seite wird nur EINMAL abgedunkelt, Escape schließt nur den oberen, und jeder darunter rückt 20 px von der Kante weg — auch bei gleicher Breite bleibt die Kante darunter sichtbar."
+                >
+                    <Group>
+                        <Button onClick={() => { setDrawerError(null); drawers.open('program'); }}>
+                            Drawer öffnen
+                        </Button>
+                        <Button
+                            variant="default"
+                            onClick={() => { setDrawerError('Speichern fehlgeschlagen: Name bereits vergeben.'); drawers.open('program'); }}
+                        >
+                            Mit Fehler öffnen
+                        </Button>
+                        <Switch
+                            label="Resizable"
+                            checked={drawerResizable}
+                            onChange={(e) => setDrawerResizable(e.currentTarget.checked)}
+                        />
+                        <Text size="sm" c="dimmed">
+                            {drawerWidth === null ? 'Breite: Vorgabe (740 px)' : `Breite: ${drawerWidth} px`}
+                        </Text>
+                    </Group>
+
+                    {/* Drawer.Stack is what makes the two behave as a
+                        stack rather than as two independent overlays. */}
+                    <Drawer.Stack>
+                        <FormDrawer
+                            {...drawers.register('program')}
+                            title="Programm bearbeiten"
+                            resizable={drawerResizable}
+                            onWidthChange={setDrawerWidth}
+                            error={drawerError}
+                            submitting={drawerSaving}
+                            dirty={drawerName.trim().length > 0}
+                            discardConfirm={{
+                                title: 'Änderungen verwerfen?',
+                                description: 'Das Ausgefüllte geht verloren.',
+                                confirmLabel: 'Verwerfen',
+                                cancelLabel: 'Weiter bearbeiten',
+                            }}
+                            submitLabel="Speichern"
+                            cancelLabel="Abbrechen"
+                            onSubmit={(event) => {
+                                event.preventDefault();
+                                setDrawerSaving(true);
+                                window.setTimeout(() => {
+                                    setDrawerSaving(false);
+                                    drawers.close('program');
+                                    setDrawerName('');
+                                }, 2000);
+                            }}
+                        >
+                            <TextInput
+                                label="Name"
+                                withAsterisk
+                                value={drawerName}
+                                onChange={(e) => setDrawerName(e.currentTarget.value)}
+                            />
+                            <Group>
+                                <Button variant="light" onClick={() => drawers.open('category')}>
+                                    Schmaler Drawer darüber (480 px)
+                                </Button>
+                                <Button variant="light" onClick={() => drawers.open('sibling')}>
+                                    Gleich breiter Drawer darüber (740 px)
+                                </Button>
+                            </Group>
+                            {/* Deliberately long, so the footer has
+                                something to stay put against. */}
+                            {Array.from({ length: 12 }, (_, i) => (
+                                <Textarea key={i} label={`Feld ${i + 1}`} autosize minRows={2} />
+                            ))}
+                        </FormDrawer>
+
+                        <FormDrawer
+                            {...drawers.register('category')}
+                            title="Kategorie anlegen"
+                            width={480}
+                            dirty={categoryName.trim().length > 0}
+                            discardConfirm={{
+                                title: 'Änderungen verwerfen?',
+                                confirmLabel: 'Verwerfen',
+                                cancelLabel: 'Weiter bearbeiten',
+                            }}
+                            submitLabel="Anlegen"
+                            cancelLabel="Abbrechen"
+                            onSubmit={(event) => {
+                                event.preventDefault();
+                                drawers.close('category');
+                                setCategoryName('');
+                            }}
+                        >
+                            <TextInput
+                                label="Bezeichnung"
+                                withAsterisk
+                                value={categoryName}
+                                onChange={(e) => setCategoryName(e.currentTarget.value)}
+                            />
+                        </FormDrawer>
+                        <FormDrawer
+                            {...drawers.register('sibling')}
+                            title="Zweites Programm"
+                            headerExtra={
+                                <Text size="sm" c="dimmed">
+                                    Gleiche Breite wie darunter — der Versatz muss ihn trennen.
+                                </Text>
+                            }
+                            dirty={siblingName.trim().length > 0}
+                            discardConfirm={{
+                                title: 'Änderungen verwerfen?',
+                                confirmLabel: 'Verwerfen',
+                                cancelLabel: 'Weiter bearbeiten',
+                            }}
+                            submitLabel="Speichern"
+                            cancelLabel="Abbrechen"
+                            onSubmit={(event) => {
+                                event.preventDefault();
+                                drawers.close('sibling');
+                                setSiblingName('');
+                            }}
+                        >
+                            <TextInput
+                                label="Name"
+                                withAsterisk
+                                value={siblingName}
+                                onChange={(e) => setSiblingName(e.currentTarget.value)}
+                            />
+                            <Button variant="light" onClick={() => drawers.open('category')}>
+                                Und noch einen darüber
+                            </Button>
+                        </FormDrawer>
+                    </Drawer.Stack>
                 </Section>
 
                 <Section

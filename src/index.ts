@@ -12,8 +12,10 @@
  *            SearchInput, ThemeToggle, BulkActionBar)
  *   - UI.7: data-grid (hideHeader, DataGridSection / grouped rows,
  *            loading overlay)
+ *   - UI.8: components (FormDrawer, DialogCloseButton,
+ *            useOptionalConfirm)
  *
- * Current wave: UI.7 (grouped rows + loading states).
+ * Current wave: UI.8 (one drawer for every edit form).
  */
 
 export * from "./theme";
