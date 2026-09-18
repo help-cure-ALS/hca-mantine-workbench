@@ -22,8 +22,10 @@
  *            an arbitrary form)
  *   - UI.13: fix — a FormDrawer mounted already open now slides in
  *            instead of appearing in place
+ *   - UI.14: fix — UI.13 used requestAnimationFrame, which never fires
+ *            in a background tab, so the drawer would not open at all
  *
- * Current wave: UI.13.
+ * Current wave: UI.14.
  */
 
 export * from "./theme";

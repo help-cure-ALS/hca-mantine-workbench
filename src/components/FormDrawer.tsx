@@ -327,18 +327,19 @@ export function FormDrawer({
      * `opened: true` on the very first render, so there is no flip and
      * the panel appears in place.
      *
-     * The first paint therefore passes `false` and the next frame
-     * passes the caller's value. One frame is invisible; without it
-     * the whole animation is.
+     * The first render therefore passes `false`, and this effect —
+     * which runs after that commit — passes the caller's value. Two
+     * commits is all `Transition` needs; the first one is never
+     * painted as an open panel, so nobody sees it.
+     *
+     * Deliberately a plain effect and not `requestAnimationFrame`:
+     * rAF does not fire in a background tab, which left the drawer
+     * permanently shut for anyone who opened it in one — measured, not
+     * guessed, after the first attempt did exactly that.
      */
     const [readyToEnter, setReadyToEnter] = useState(false);
     useEffect(() => {
-        if (!opened) {
-            setReadyToEnter(false);
-            return;
-        }
-        const frame = requestAnimationFrame(() => setReadyToEnter(true));
-        return () => cancelAnimationFrame(frame);
+        setReadyToEnter(opened);
     }, [opened]);
     const isOpen = opened && readyToEnter;
 
