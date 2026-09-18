@@ -43,3 +43,7 @@ export type {
 // Three-slot layout shell
 export { DataGridLayout } from "./DataGridLayout";
 export type { DataGridLayoutProps } from "./DataGridLayout";
+
+// Grouped rows as columns — the board next to grid and cards
+export { Board } from "./Board";
+export type { BoardProps, BoardColumn } from "./Board";

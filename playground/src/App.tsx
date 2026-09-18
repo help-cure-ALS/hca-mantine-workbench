@@ -16,7 +16,7 @@ import {
     Title,
 } from '@mantine/core';
 import { Drawer, useDrawersStack } from '@mantine/core';
-import { CountrySelect, DataGrid, FormDrawer, PageHeader, SearchInput, type Column, type RowSelection } from '@hca/mantine-workbench';
+import { Board, CountrySelect, DataGrid, FormDrawer, PageHeader, SearchInput, type Column, type RowSelection } from '@hca/mantine-workbench';
 import { RichTextEditor } from '@hca/mantine-workbench/rich-text';
 
 /**
@@ -424,6 +424,30 @@ export function App() {
                             },
                         ]}
                     />
+                </Section>
+
+                <Section
+                    title="Board"
+                    expectation="Drei Spalten nebeneinander, je Spalte Titel, Zaehler in Monospace und rechts die Meta-Angabe. Die dritte Spalte ist leer und zeigt den Hinweistext statt nichts. Karten sind klickbar (Cursor), die Spalten scrollen waagerecht, wenn das Fenster schmaler wird."
+                >
+                    <Box style={{ height: 320 }}>
+                        <Board
+                            columns={[
+                                { key: 'open', label: 'Offen', meta: 'O 66%', rows: ROWS.slice(0, 2) },
+                                { key: 'waiting', label: 'Wartend', meta: 'O 100%', rows: ROWS.slice(2, 4) },
+                                { key: 'closed', label: 'Geschlossen', rows: [] },
+                            ]}
+                            getRowId={(row) => String(row.id)}
+                            renderCard={(row) => (
+                                <Paper withBorder radius="md" p="sm">
+                                    <Text size="sm" fw={500}>{row.name}</Text>
+                                    <Text size="xs" c="dimmed">{row.email}</Text>
+                                </Paper>
+                            )}
+                            onRowClick={() => undefined}
+                            emptyColumn={<Text size="xs" c="dimmed">Nichts in dieser Spalte.</Text>}
+                        />
+                    </Box>
                 </Section>
             </Stack>
         </Box>
