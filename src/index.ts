@@ -14,8 +14,9 @@
  *            loading overlay)
  *   - UI.8: components (FormDrawer, DialogCloseButton,
  *            useOptionalConfirm)
+ *   - UI.9: components (FormDrawer without a form — detail panels)
  *
- * Current wave: UI.8 (one drawer for every edit form).
+ * Current wave: UI.9 (one drawer for every side panel, form or not).
  */
 
 export * from "./theme";

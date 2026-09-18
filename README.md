@@ -27,7 +27,10 @@ for shared use across the TENOS/HCA ecosystem, usable by anyone.
   `SearchInput`, `ThemeToggle`, `BulkActionBar` + `BulkPill` +
   `BulkSeparator`.
 
-  `FormDrawer` is the shell every edit form gets: a scrolling body with
+  `FormDrawer` is the shell every side panel gets, form or not — leave
+  `onSubmit` out and it holds a read-only detail panel instead: no
+  `<form>`, no Save, and a footer only if `footer` supplies one. With
+  `onSubmit` it is the shell every edit form gets: a scrolling body with
   a footer that stays put, an error slot, and a lock on every way out
   while the form is being saved. A dirty form asks before it is thrown
   away — including on a click beside the drawer, which is how unsaved

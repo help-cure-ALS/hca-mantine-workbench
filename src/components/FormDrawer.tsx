@@ -32,6 +32,12 @@
  * `Stack`, inside the `<form>`, so a submit button is not needed and
  * Enter submits as usual.
  *
+ * Without `onSubmit` the same shell holds a panel that only shows
+ * something: no `<form>`, no Save, and a footer only if `footer`
+ * supplies one. Header, close button, scrolling, stacking and width
+ * behave identically, which is the point — a detail panel and an edit
+ * form should not look like two different products.
+ *
  * ── Closing ──
  *
  * While `submitting` is true the drawer cannot be closed: not by the
@@ -197,7 +203,21 @@ export interface FormDrawerProps {
      */
     stackId?: string;
     children: ReactNode;
-    onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+    /**
+     * Makes the panel a form: the children land inside a `<form>`,
+     * Enter submits, and the footer carries Cancel and Save.
+     *
+     * Leave it out for a panel that only shows something — a record, a
+     * payload, a list of notifications. Then there is no `<form>` and no
+     * footer unless `footer` supplies one, because a Save button on a
+     * page nobody can edit is a promise the panel cannot keep.
+     */
+    onSubmit?: (event: FormEvent<HTMLFormElement>) => void;
+    /**
+     * A footer of the caller's own, in place of Cancel and Save. The
+     * usual case for a read-only panel: one action, or none at all.
+     */
+    footer?: ReactNode;
     /**
      * Shown as a red alert above the fields. A string is the usual
      * case; a node allows a link or a retry button.
@@ -238,6 +258,35 @@ export interface FormDrawerProps {
     headerExtra?: ReactNode;
 }
 
+/**
+ * The column the body and the footer live in — a `<form>` when there is
+ * something to submit, a plain box otherwise.
+ *
+ * A `<form>` without a submit handler is not harmless: Enter inside any
+ * field would reload the page.
+ */
+function Body({
+    onSubmit,
+    children,
+}: {
+    onSubmit?: (event: FormEvent<HTMLFormElement>) => void;
+    children: ReactNode;
+}) {
+    const style = {
+        display: "flex",
+        flexDirection: "column",
+        flex: 1,
+        minHeight: 0,
+    } as const;
+    return onSubmit ? (
+        <form onSubmit={onSubmit} style={style}>
+            {children}
+        </form>
+    ) : (
+        <div style={style}>{children}</div>
+    );
+}
+
 export function FormDrawer({
     opened,
     onClose,
@@ -250,6 +299,7 @@ export function FormDrawer({
     stackId,
     children,
     onSubmit,
+    footer,
     error,
     submitting = false,
     submitDisabled = false,
@@ -515,15 +565,7 @@ export function FormDrawer({
                         padding: 0,
                     }}
                 >
-                    <form
-                        onSubmit={onSubmit}
-                        style={{
-                            display: "flex",
-                            flexDirection: "column",
-                            flex: 1,
-                            minHeight: 0,
-                        }}
-                    >
+                    <Body onSubmit={onSubmit}>
                         <Box
                             style={{
                                 flex: 1,
@@ -541,38 +583,44 @@ export function FormDrawer({
                             </Stack>
                         </Box>
 
-                        <Group
-                            justify={footerLeft ? "space-between" : "flex-end"}
-                            gap="sm"
-                            p="md"
-                            style={{
-                                borderTop: "1px solid var(--mantine-color-default-border)",
-                                // Sits below the scrolling body rather
-                                // than over it, so the last field is
-                                // never covered.
-                                flexShrink: 0,
-                            }}
-                        >
-                            {footerLeft}
-                            <Group gap="sm">
-                                <Button
-                                    variant="default"
-                                    onClick={requestClose}
-                                    disabled={submitting}
-                                >
-                                    {cancelLabel}
-                                </Button>
-                                <Button
-                                    type="submit"
-                                    color={submitColor}
-                                    loading={submitting}
-                                    disabled={submitDisabled}
-                                >
-                                    {submitLabel}
-                                </Button>
+                        {(footer || onSubmit || footerLeft) && (
+                            <Group
+                                justify={footerLeft ? "space-between" : "flex-end"}
+                                gap="sm"
+                                p="md"
+                                style={{
+                                    borderTop: "1px solid var(--mantine-color-default-border)",
+                                    // Sits below the scrolling body
+                                    // rather than over it, so the last
+                                    // field is never covered.
+                                    flexShrink: 0,
+                                }}
+                            >
+                                {footerLeft}
+                                {footer ?? (
+                                    <Group gap="sm">
+                                        <Button
+                                            variant="default"
+                                            onClick={requestClose}
+                                            disabled={submitting}
+                                        >
+                                            {cancelLabel}
+                                        </Button>
+                                        {onSubmit && (
+                                            <Button
+                                                type="submit"
+                                                color={submitColor}
+                                                loading={submitting}
+                                                disabled={submitDisabled}
+                                            >
+                                                {submitLabel}
+                                            </Button>
+                                        )}
+                                    </Group>
+                                )}
                             </Group>
-                        </Group>
-                    </form>
+                        )}
+                    </Body>
                 </Drawer.Body>
             </Drawer.Content>
         </Drawer.Root>

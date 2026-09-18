@@ -61,7 +61,7 @@ export function App() {
     const [multiValue, setMultiValue] = useState<string[]>(['alpha', 'charlie']);
     const [search, setSearch] = useState('');
     const [sectionSelection, setSectionSelection] = useState<RowSelection>(new Set());
-    const drawers = useDrawersStack(['program', 'category', 'sibling']);
+    const drawers = useDrawersStack(['program', 'category', 'sibling', 'detail']);
     const [drawerName, setDrawerName] = useState('');
     const [categoryName, setCategoryName] = useState('');
     const [siblingName, setSiblingName] = useState('');
@@ -246,6 +246,9 @@ export function App() {
                                 <Button variant="light" onClick={() => drawers.open('sibling')}>
                                     Gleich breiter Drawer darüber (740 px)
                                 </Button>
+                                <Button variant="light" onClick={() => drawers.open('detail')}>
+                                    Lesepanel (ohne Formular)
+                                </Button>
                             </Group>
                             {/* Deliberately long, so the footer has
                                 something to stay put against. */}
@@ -310,6 +313,27 @@ export function App() {
                             <Button variant="light" onClick={() => drawers.open('category')}>
                                 Und noch einen darüber
                             </Button>
+                        </FormDrawer>
+                        {/* No onSubmit: same shell, no form, no Save. */}
+                        <FormDrawer
+                            {...drawers.register('detail')}
+                            title="Rohdaten"
+                            width={560}
+                            footer={
+                                <Button variant="default" onClick={() => drawers.close('detail')}>
+                                    Schließen
+                                </Button>
+                            }
+                        >
+                            <Text size="sm" c="dimmed">
+                                Nur zum Ansehen. Kein Speichern-Knopf, keine Rückfrage beim
+                                Schließen — es gibt nichts zu verlieren.
+                            </Text>
+                            {Array.from({ length: 10 }, (_, i) => (
+                                <Text key={i} ff="monospace" fz={12}>
+                                    {`{ "feld_${i + 1}": "wert", "quelle": "beispiel" }`}
+                                </Text>
+                            ))}
                         </FormDrawer>
                     </Drawer.Stack>
                 </Section>
