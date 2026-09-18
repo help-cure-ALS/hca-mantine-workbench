@@ -65,6 +65,7 @@ export function App() {
     const [drawerName, setDrawerName] = useState('');
     const [categoryName, setCategoryName] = useState('');
     const [siblingName, setSiblingName] = useState('');
+    const [soloOpen, setSoloOpen] = useState(false);
     const [drawerSaving, setDrawerSaving] = useState(false);
     const [drawerError, setDrawerError] = useState<string | null>(null);
     const [drawerResizable, setDrawerResizable] = useState(false);
@@ -203,6 +204,30 @@ export function App() {
                             {drawerWidth === null ? 'Breite: Vorgabe (740 px)' : `Breite: ${drawerWidth} px`}
                         </Text>
                     </Group>
+
+                    {/* Outside any Drawer.Stack, and mounted whether it is
+                        open or not — the case that caught a closed drawer
+                        dimming the whole page in v0.2.8. If this section
+                        looks greyed out before you click anything, that
+                        regression is back. */}
+                    <Group>
+                        <Button variant="default" onClick={() => setSoloOpen(true)}>
+                            Einzelner Drawer (ohne Stack)
+                        </Button>
+                    </Group>
+                    <FormDrawer
+                        opened={soloOpen}
+                        onClose={() => setSoloOpen(false)}
+                        title="Einzeln, ohne Stack"
+                        onSubmit={(event) => {
+                            event.preventDefault();
+                            setSoloOpen(false);
+                        }}
+                        submitLabel="Speichern"
+                        cancelLabel="Abbrechen"
+                    >
+                        <TextInput label="Feld" />
+                    </FormDrawer>
 
                     {/* Drawer.Stack is what makes the two behave as a
                         stack rather than as two independent overlays. */}

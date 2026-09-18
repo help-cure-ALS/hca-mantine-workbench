@@ -15,8 +15,9 @@
  *   - UI.8: components (FormDrawer, DialogCloseButton,
  *            useOptionalConfirm)
  *   - UI.9: components (FormDrawer without a form — detail panels)
+ *   - UI.10: fix — a closed, unstacked FormDrawer dimmed the page
  *
- * Current wave: UI.9 (one drawer for every side panel, form or not).
+ * Current wave: UI.10.
  */
 
 export * from "./theme";

@@ -467,9 +467,15 @@ export function FormDrawer({
             {/* One dimmed backdrop for the whole stack. Two overlays
                 darken the page twice and the lower drawer looks
                 disabled. The lower ones skip the fade so the page does
-                not flash while a drawer opens on top of them. */}
+                not flash while a drawer opens on top of them.
+                
+                Outside a stack the answer is simply `opened`, which is
+                what Mantine's own `Drawer` does: `isTop` is `true` for
+                an unstacked drawer whether it is open or not, so using
+                it alone left a dimmed sheet lying over every page that
+                merely mounts a closed drawer. */}
             <Drawer.Overlay
-                visible={isTop}
+                visible={stackState ? isTop : opened}
                 transitionProps={stackState ? { duration: 0 } : undefined}
             />
             <Drawer.Content
