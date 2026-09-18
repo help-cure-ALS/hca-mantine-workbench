@@ -20,8 +20,10 @@
  *            without a trustworthy count renders without a number)
  *   - UI.12: components (FormDialog — the ConfirmDialog shell around
  *            an arbitrary form)
+ *   - UI.13: fix — a FormDrawer mounted already open now slides in
+ *            instead of appearing in place
  *
- * Current wave: UI.12.
+ * Current wave: UI.13.
  */
 
 export * from "./theme";

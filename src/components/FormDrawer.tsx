@@ -318,6 +318,30 @@ export function FormDrawer({
     const dragState = useRef<{ startX: number; startWidth: number } | null>(null);
     const contentRef = useRef<HTMLDivElement | null>(null);
 
+    /**
+     * UI.13 — a drawer that is mounted already open still slides in.
+     *
+     * Mantine's `Transition` runs when `mounted` flips false → true.
+     * A caller that renders the drawer only while it is open — the
+     * common shape for an editor opened from a menu — hands it
+     * `opened: true` on the very first render, so there is no flip and
+     * the panel appears in place.
+     *
+     * The first paint therefore passes `false` and the next frame
+     * passes the caller's value. One frame is invisible; without it
+     * the whole animation is.
+     */
+    const [readyToEnter, setReadyToEnter] = useState(false);
+    useEffect(() => {
+        if (!opened) {
+            setReadyToEnter(false);
+            return;
+        }
+        const frame = requestAnimationFrame(() => setReadyToEnter(true));
+        return () => cancelAnimationFrame(frame);
+    }, [opened]);
+    const isOpen = opened && readyToEnter;
+
     // A fresh open starts from the configured width again. Carrying a
     // drag over into the next, unrelated form would be surprising; the
     // consumer that wants it remembers the number itself via
@@ -341,9 +365,9 @@ export function FormDrawer({
     // Mantine's own `Drawer` does this bookkeeping; `Drawer.Root` does
     // not, and this component is built on `Root` to get its own header.
     useEffect(() => {
-        if (opened && stack && stackId) stack.addModal(stackId, MODAL_Z_INDEX);
+        if (isOpen && stack && stackId) stack.addModal(stackId, MODAL_Z_INDEX);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [opened, stackId]);
+    }, [isOpen, stackId]);
 
     // Unmounting while still open would leave a ghost in the stack, and
     // every drawer below it one step too far back for good.
@@ -436,7 +460,7 @@ export function FormDrawer({
 
     return (
         <Drawer.Root
-            opened={opened}
+            opened={isOpen}
             onClose={requestClose}
             position={position}
             size={effectiveWidth}
@@ -475,7 +499,7 @@ export function FormDrawer({
                 it alone left a dimmed sheet lying over every page that
                 merely mounts a closed drawer. */}
             <Drawer.Overlay
-                visible={stackState ? isTop : opened}
+                visible={stackState ? isTop : isOpen}
                 transitionProps={stackState ? { duration: 0 } : undefined}
             />
             <Drawer.Content
