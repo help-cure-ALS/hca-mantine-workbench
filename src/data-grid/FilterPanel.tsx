@@ -15,7 +15,8 @@
  * 2. **Counts come from the caller.** The component computes nothing.
  *    The caller hands in `items: { count }` per section. In server
  *    mode the values come from a `/facets`-style endpoint; in client
- *    mode the caller computes them locally.
+ *    mode the caller computes them locally. A caller that has no
+ *    trustworthy count omits it — see `FilterPanelItem.count`.
  *
  * 3. **Selection is controlled.** `selection: Map<sectionKey,
  *    Set<itemKey>>` + `onChange`. The component holds no internal
@@ -35,9 +36,17 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 export interface FilterPanelItem {
     key: string;
     label: string;
-    /** Global count (not narrowed). 0 → item is dimmed (or hidden if
-     *  `hideZeroItems` is set on its section). */
-    count: number;
+    /**
+     * Global count (not narrowed). 0 → item is dimmed (or hidden if
+     * `hideZeroItems` is set on its section).
+     *
+     * Optional. A page that is paginated server-side and has no facet
+     * endpoint cannot know the count, and the numbers it could derive
+     * from the loaded page would be wrong. Leaving it out renders the
+     * row without a number instead — no count is honest, a made-up one
+     * is not, and passing 0 would dim every item as if nothing matched.
+     */
+    count?: number;
 }
 
 export interface FilterPanelSection {
@@ -206,8 +215,11 @@ export function FilterPanel({
             {sections.map((section) => {
                 const isCollapsed = collapsed[section.key] === true;
                 const selectedSet = selection.get(section.key) ?? new Set<string>();
+                // An item without a count is never hidden by
+                // `hideZeroItems`: not knowing a count is not the same
+                // as knowing it is zero.
                 const visibleItems = section.hideZeroItems
-                    ? section.items.filter((i) => i.count > 0)
+                    ? section.items.filter((i) => i.count === undefined || i.count > 0)
                     : section.items;
                 return (
                     <Box key={section.key}>
@@ -307,13 +319,18 @@ function FilterItemRow({
                     },
                 }}
             />
-            <Text
-                fz="sm"
-                c="dimmed"
-                style={{ flexShrink: 0, opacity: isZero ? 0.5 : 1, cursor: "pointer" }}
-            >
-                {item.count}
-            </Text>
+            {/* No count, no column. An empty slot on the right would
+                read as "zero" at a glance, which is the one thing a
+                caller without counts must not say. */}
+            {item.count !== undefined && (
+                <Text
+                    fz="sm"
+                    c="dimmed"
+                    style={{ flexShrink: 0, opacity: isZero ? 0.5 : 1, cursor: "pointer" }}
+                >
+                    {item.count}
+                </Text>
+            )}
         </Group>
     );
 }

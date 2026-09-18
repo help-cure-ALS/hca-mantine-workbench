@@ -16,8 +16,10 @@
  *            useOptionalConfirm)
  *   - UI.9: components (FormDrawer without a form — detail panels)
  *   - UI.10: fix — a closed, unstacked FormDrawer dimmed the page
+ *   - UI.11: data-grid (FilterPanelItem.count optional — a filter
+ *            without a trustworthy count renders without a number)
  *
- * Current wave: UI.10.
+ * Current wave: UI.11.
  */
 
 export * from "./theme";
