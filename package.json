@@ -1,6 +1,6 @@
 {
   "name": "@hca/mantine-workbench",
-  "version": "0.2.16",
+  "version": "0.2.17",
   "description": "Generic Mantine-v9 UI components: theme foundation, resizable panels, main navigation, data grid. No domain logic.",
   "license": "MIT",
   "private": true,
@@ -47,10 +47,18 @@
     "react-resizable-panels": "^4.0.0"
   },
   "peerDependenciesMeta": {
-    "@mantine/tiptap": { "optional": true },
-    "@tiptap/extension-link": { "optional": true },
-    "@tiptap/react": { "optional": true },
-    "@tiptap/starter-kit": { "optional": true }
+    "@mantine/tiptap": {
+      "optional": true
+    },
+    "@tiptap/extension-link": {
+      "optional": true
+    },
+    "@tiptap/react": {
+      "optional": true
+    },
+    "@tiptap/starter-kit": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "prettier": "^3.0.0",
