@@ -29,7 +29,17 @@
  */
 
 import { useEffect, useState, type ReactNode } from "react";
-import { Box, Button, Checkbox, Collapse, Group, Radio, Stack, Text, UnstyledButton } from "@mantine/core";
+import {
+    Box,
+    Button,
+    Checkbox,
+    Collapse,
+    Group,
+    Radio,
+    Stack,
+    Text,
+    UnstyledButton,
+} from "@mantine/core";
 import { useHover } from "@mantine/hooks";
 import { ChevronDown, ChevronRight } from "lucide-react";
 
@@ -262,6 +272,7 @@ export function FilterPanel({
                                             item={item}
                                             checked={selectedSet.has(item.key)}
                                             single={section.mode === "single"}
+                                            groupName={section.key}
                                             onToggle={() => toggleItem(section, item.key)}
                                         />
                                     ))
@@ -283,12 +294,15 @@ function FilterItemRow({
     item,
     checked,
     single,
+    groupName,
     onToggle,
 }: {
     item: FilterPanelItem;
     checked: boolean;
     /** `section.mode === "single"` — one of these, not several. */
     single: boolean;
+    /** The section key, used as the radio group's `name`. */
+    groupName: string;
     onToggle: () => void;
 }) {
     const { hovered, ref } = useHover<HTMLDivElement>();
@@ -297,6 +311,13 @@ function FilterItemRow({
     // promised "tick as many as you like" and then silently replaced
     // the previous tick. The control now says which of the two it is.
     const Control = single ? Radio : Checkbox;
+    // The two components do not name the input the same: Checkbox's
+    // styles API calls it `input`, Radio's calls it `radio`. A key
+    // neither of them knows is dropped without a word, and because
+    // `Control` is a union TypeScript widens the prop and says nothing
+    // either — so the wrong key costs the pointer cursor on the
+    // control itself and nothing tells you.
+    const inputPart = single ? "radio" : "input";
     return (
         <Group
             ref={ref}
@@ -316,6 +337,12 @@ function FilterItemRow({
                 size="xs"
                 label={item.label}
                 checked={checked}
+                // Radios in one section share a name, so the browser
+                // treats them as one group: arrow keys move between
+                // the options and a screen reader announces "2 of 5"
+                // rather than five groups of one. Harmless on a
+                // checkbox, which the name does not group.
+                name={groupName}
                 // `onChange` on a checked radio never fires — the input
                 // is already in the target state — and clicking the
                 // active item is how a single-choice section is
@@ -326,7 +353,7 @@ function FilterItemRow({
                 onClick={onToggle}
                 styles={{
                     body: { cursor: "pointer" },
-                    input: { cursor: "pointer" },
+                    [inputPart]: { cursor: "pointer" },
                     label: {
                         fontSize: "var(--mantine-font-size-sm)",
                         color: isZero ? "var(--mantine-color-dimmed)" : undefined,
