@@ -29,9 +29,12 @@
  */
 
 import { useEffect, useState, type ReactNode } from "react";
-import { Box, Button, Checkbox, Collapse, Group, Stack, Text, UnstyledButton } from "@mantine/core";
+import { Box, Button, Checkbox, Collapse, Group, Radio, Stack, Text, UnstyledButton } from "@mantine/core";
 import { useHover } from "@mantine/hooks";
 import { ChevronDown, ChevronRight } from "lucide-react";
+
+/** Placeholder handler — see the comment at the `onChange` that uses it. */
+const NOOP = () => {};
 
 export interface FilterPanelItem {
     key: string;
@@ -258,6 +261,7 @@ export function FilterPanel({
                                             key={item.key}
                                             item={item}
                                             checked={selectedSet.has(item.key)}
+                                            single={section.mode === "single"}
                                             onToggle={() => toggleItem(section, item.key)}
                                         />
                                     ))
@@ -278,14 +282,21 @@ export function FilterPanel({
 function FilterItemRow({
     item,
     checked,
+    single,
     onToggle,
 }: {
     item: FilterPanelItem;
     checked: boolean;
+    /** `section.mode === "single"` — one of these, not several. */
+    single: boolean;
     onToggle: () => void;
 }) {
     const { hovered, ref } = useHover<HTMLDivElement>();
     const isZero = item.count === 0;
+    // A single-choice section always drew checkboxes, so the panel
+    // promised "tick as many as you like" and then silently replaced
+    // the previous tick. The control now says which of the two it is.
+    const Control = single ? Radio : Checkbox;
     return (
         <Group
             ref={ref}
@@ -301,11 +312,18 @@ function FilterItemRow({
                 cursor: "pointer",
             }}
         >
-            <Checkbox
+            <Control
                 size="xs"
                 label={item.label}
                 checked={checked}
-                onChange={onToggle}
+                // `onChange` on a checked radio never fires — the input
+                // is already in the target state — and clicking the
+                // active item is how a single-choice section is
+                // cleared. `onClick` fires either way, so it carries
+                // both controls and `onChange` only satisfies React's
+                // controlled-input warning.
+                onChange={NOOP}
+                onClick={onToggle}
                 styles={{
                     body: { cursor: "pointer" },
                     input: { cursor: "pointer" },
