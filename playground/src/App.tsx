@@ -3,6 +3,8 @@ import {
     Badge,
     Box,
     Button,
+    Checkbox,
+    Radio,
     TextInput,
     Textarea,
     Group,
@@ -61,6 +63,7 @@ export function App() {
     const [multiValue, setMultiValue] = useState<string[]>(['alpha', 'charlie']);
     const [search, setSearch] = useState('');
     const [sectionSelection, setSectionSelection] = useState<RowSelection>(new Set());
+    const [radioValue, setRadioValue] = useState('always');
     const drawers = useDrawersStack(['program', 'category', 'sibling', 'detail']);
     const [drawerName, setDrawerName] = useState('');
     const [categoryName, setCategoryName] = useState('');
@@ -83,6 +86,47 @@ export function App() {
                     title="Workbench Playground"
                     subtitle="Live-Check vor jedem Release — läuft direkt gegen ../src"
                 />
+
+                <Section
+                    title="Radio, Checkbox, Switch — Beschreibung"
+                    expectation="Die Beschreibung ist so gross wie normaler Fliesstext (13px, nicht 11px) und klebt am Label statt zu schweben. Der Radio-KREIS ist kleiner als die Schrift daneben; Label und Beschreibung behalten ihre Groesse. Die Checkbox-Box bleibt gross genug zum Treffen."
+                >
+                    <Stack gap="md">
+                        <Radio.Group
+                            label="Wann soll dieser Zweig laufen?"
+                            value={radioValue}
+                            onChange={setRadioValue}
+                        >
+                            <Stack gap="sm" mt="sm">
+                                <Radio
+                                    value="always"
+                                    label="Immer"
+                                    description="Der Zweig laeuft nach jedem Ergebnis des vorherigen Schritts."
+                                />
+                                <Radio
+                                    value="score"
+                                    label="Nur wenn das Ergebnis belastbar genug ist"
+                                    description="Der vorherige Schritt muss sich seiner Sache sicher genug sein."
+                                />
+                                <Radio
+                                    value="custom"
+                                    label="Eigene Regel"
+                                    description="Mehrere Bedingungen kombinieren."
+                                />
+                            </Stack>
+                        </Radio.Group>
+
+                        <Checkbox
+                            label="Auch archivierte einbeziehen"
+                            description="Aendert nur diese Ansicht, nicht die gespeicherte Sicht."
+                        />
+
+                        <Switch
+                            label="Mindest-Score verlangen"
+                            description="Ohne Haken spielt der Score keine Rolle."
+                        />
+                    </Stack>
+                </Section>
 
                 <Section
                     title="Switch"

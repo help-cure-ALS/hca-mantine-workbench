@@ -114,6 +114,107 @@ export const baseTheme: MantineThemeOverride = createTheme({
             defaultProps: {
                 withThumbIndicator: false,
             },
+            styles: {
+                description: {
+                    fontSize: "var(--mantine-font-size-sm)",
+                    marginTop: 2,
+                },
+            },
+        },
+        /**
+         * House convention: the control is smaller than the text, and
+         * the description is big enough to read.
+         *
+         * Mantine renders a description at `xs`, which on this scale is
+         * 11 px — the size reserved for tiny meta, not for a sentence
+         * somebody has to read before choosing. It also leaves a gap
+         * between label and description that makes the two look
+         * unrelated. A radio list whose explanations are unreadable is
+         * a choice made blind.
+         *
+         * The obvious fix is wrong: `size="xs"` scales the whole
+         * component, so shrinking the circle shrinks the sentence
+         * with it. `--radio-size` is the circle alone.
+         *
+         * `Checkbox` gets the description treatment but keeps its box
+         * size — it is the row-selection control in `DataGrid`, and a
+         * smaller box there would be harder to hit.
+         */
+        Radio: {
+            styles: {
+                /**
+                 * What `size="xs"` does, minus the shrunken text.
+                 *
+                 * Mantine's `InlineInput` resolves a size into exactly
+                 * three variables:
+                 *
+                 *   --radio-size  the circle
+                 *   --label-lh    the label's line box, kept equal to
+                 *                 the circle — that pairing is what
+                 *                 centres the two on each other
+                 *   --label-fz    the label's font size
+                 *
+                 * The first two are what we want at `xs`; the third is
+                 * the 11 px that made the explanation unreadable, so it
+                 * is the one left alone.
+                 *
+                 * `--label-lh` goes on `labelWrapper`, not on `root`:
+                 * `InlineInput` writes its own value onto the root from
+                 * the size it was given, so anything set there is
+                 * overwritten and nothing changes. The wrapper is where
+                 * the variable is read (`line-height: var(--label-lh)`).
+                 *
+                 * `--label-offset-start`, the gap to the text, is
+                 * deliberately NOT touched: Mantine holds it at
+                 * `spacing-sm` for every size, and Checkbox and Switch
+                 * use the same variable. Narrowing it here alone gave
+                 * the three controls three different gaps in one
+                 * column.
+                 */
+                /**
+                 * Both size variables on the root, where Mantine's own
+                 * resolver puts them.
+                 *
+                 * Setting `--radio-size` on the input alone shrank the
+                 * circle but left the box around it at `sm`, and the
+                 * dot inside is positioned absolutely against that box
+                 * (`top: 50%` on `inner`) — so it sat off centre. The
+                 * dot has its own variable, `--radio-icon-size`, which
+                 * has to come down with the circle or it is too big for
+                 * it.
+                 */
+                root: {
+                    "--radio-size": "var(--radio-size-xs)",
+                    "--radio-icon-size": "var(--radio-icon-size-xs)",
+                },
+                labelWrapper: { "--label-lh": "var(--label-lh-xs)" },
+                description: {
+                    fontSize: "var(--mantine-font-size-sm)",
+                    marginTop: 2,
+                },
+            },
+        },
+        /**
+         * Same treatment as Radio: box at `xs`, text left alone.
+         *
+         * `--checkbox-size` is the only size variable here — the tick
+         * scales itself off the box (`60%` of it in Mantine's CSS), so
+         * there is no icon variable to pull down with it.
+         *
+         * This reaches the row-selection checkbox in `DataGrid` too,
+         * which is the one place where a smaller box is a real cost:
+         * it is a click target in a dense table. It stays at 16 px
+         * rather than smaller for that reason.
+         */
+        Checkbox: {
+            styles: {
+                root: { "--checkbox-size": "var(--checkbox-size-xs)" },
+                labelWrapper: { "--label-lh": "var(--label-lh-xs)" },
+                description: {
+                    fontSize: "var(--mantine-font-size-sm)",
+                    marginTop: 2,
+                },
+            },
         },
         // House convention: selected-option checkmark on the right,
         // so option labels stay left-aligned without an icon gutter
