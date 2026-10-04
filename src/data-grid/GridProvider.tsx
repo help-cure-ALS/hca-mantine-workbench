@@ -32,7 +32,7 @@ export const gridEnglish = {
     down: "Move right",
     width: "Width",
     select: "Select entry",
-    selectPage: "Select loaded entries",
+    selectPage: "Check/uncheck all",
     clear: "Clear selection",
     selected: "selected",
     loaded: "loaded",
@@ -74,7 +74,7 @@ export const gridGerman: GridLabels = {
     down: "Nach rechts",
     width: "Breite",
     select: "Eintrag auswählen",
-    selectPage: "Geladene Einträge auswählen",
+    selectPage: "Alle an-/abhaken",
     clear: "Auswahl aufheben",
     selected: "ausgewählt",
     loaded: "geladen",
@@ -100,7 +100,11 @@ interface GridContextValue {
     toolbarSlot?: {
         element: HTMLDivElement | null;
         leadingElement: HTMLDivElement | null;
+        selectionElement: HTMLDivElement | null;
+        layoutElement: HTMLDivElement | null;
         setLeadingElement: (element: HTMLDivElement | null) => void;
+        setSelectionElement: (element: HTMLDivElement | null) => void;
+        setLayoutElement: (element: HTMLDivElement | null) => void;
         setElement: (element: HTMLDivElement | null) => void;
     };
 }
@@ -122,12 +126,23 @@ export function GridProvider({
 }) {
     const parent = useContext(GridContext);
     const [leadingElement, setLeadingElement] = useState<HTMLDivElement | null>(null);
+    const [selectionElement, setSelectionElement] = useState<HTMLDivElement | null>(null);
+    const [layoutElement, setLayoutElement] = useState<HTMLDivElement | null>(null);
     const [element, setElement] = useState<HTMLDivElement | null>(null);
     return (
         <GridContext.Provider
             value={{
                 toolbarSlot: toolbarScope
-                    ? { element, setElement, leadingElement, setLeadingElement }
+                    ? {
+                          element,
+                          setElement,
+                          leadingElement,
+                          setLeadingElement,
+                          selectionElement,
+                          setSelectionElement,
+                          layoutElement,
+                          setLayoutElement,
+                      }
                     : parent.toolbarSlot,
                 stateAdapter: stateAdapter ?? parent.stateAdapter,
                 contextKey: contextKey ?? parent.contextKey,

@@ -1,0 +1,74 @@
+.root.root {
+    position: relative;
+    width: 100%;
+    max-width: 380px;
+    min-width: 0;
+    height: 100%;
+    box-shadow: var(--mantine-shadow-xs);
+    transition: border-color 120ms ease;
+}
+.root[data-compact] {
+    height: auto;
+    flex-shrink: 0;
+}
+.root:hover {
+    border-color: color-mix(
+        in srgb,
+        var(--mantine-color-default-border),
+        var(--mantine-color-text) 20%
+    );
+}
+.selection {
+    position: absolute;
+    inset-block-start: 7px;
+    inset-inline-start: 7px;
+    z-index: 1;
+    opacity: 0.45;
+    transition: opacity 120ms ease;
+}
+.root:hover .selection,
+.root:focus-within .selection,
+.root[data-selected] .selection {
+    opacity: 1;
+}
+@media (hover: none) {
+    .selection {
+        opacity: 1;
+    }
+}
+.heading {
+    min-width: 0;
+    flex: 1 1 auto;
+}
+.actions {
+    min-width: 0;
+    max-width: 100%;
+}
+.title {
+    overflow-wrap: anywhere;
+}
+.details {
+    flex: 1;
+    font-size: 13px;
+}
+.details:empty {
+    display: none;
+}
+.details :global(.mantine-Text-root),
+.details :global(.mantine-Anchor-root) {
+    font-size: 13px;
+}
+.label {
+    flex-shrink: 0;
+}
+.value {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    text-align: end;
+}
+@media (prefers-reduced-motion: reduce) {
+    .root,
+    .selection {
+        transition: none;
+    }
+}

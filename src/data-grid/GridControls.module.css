@@ -74,6 +74,45 @@
     font-size: 13px;
     white-space: nowrap;
 }
+.toolbar {
+    container-type: inline-size;
+}
+.search {
+    flex: 1 1 0%;
+    min-width: 160px;
+}
+.searchRow > :not(.search) {
+    flex-shrink: 0;
+}
+.viewControls {
+    margin-inline-start: auto;
+    min-width: 0;
+}
+.layoutSlot:empty,
+.columnsSlot:empty {
+    display: none;
+}
+@container (max-width: 600px) {
+    .searchRow.searchRow {
+        flex-wrap: wrap;
+    }
+    .search {
+        flex: 1 1 180px;
+    }
+    .viewControls.viewControls {
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        max-width: 100%;
+    }
+}
+[data-mantine-color-scheme="dark"] .filterToggle[aria-pressed="true"] {
+    background-color: var(--mantine-color-dark-4);
+    border-color: var(--mantine-color-dark-3);
+    color: var(--mantine-color-white);
+}
+[data-mantine-color-scheme="dark"] .filterToggle[aria-pressed="true"]:hover {
+    background-color: var(--mantine-color-dark-3);
+}
 .layouts {
     display: inline-flex;
     padding: 3px;
@@ -107,4 +146,22 @@
 .table [data-grid-title] {
     font-size: 15px;
     font-weight: 600;
+}
+.cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, min(100%, 380px));
+    gap: var(--mantine-spacing-md);
+}
+.board {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: min(100%, 404px);
+    gap: var(--mantine-spacing-md);
+}
+.lane {
+    min-width: 0;
+    min-height: 160px;
+    padding: 12px;
+    border-radius: var(--mantine-radius-md);
+    background: var(--mantine-color-default-hover);
 }

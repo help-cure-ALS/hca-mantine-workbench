@@ -16,24 +16,27 @@ import {
     type Column,
 } from "@hca/mantine-workbench";
 
-type Row = { id: string; name: string; status: string; notes: string };
+type Row = { id: string; name: string; status: string; notes: string; owner: string };
 type View = { id: string; name: string; search_params: string; is_default?: boolean };
 const initial: Row[] = Array.from({ length: 12 }, (_, i) => ({
     id: String(i + 1),
     name: ["Alpha", "Beta", "Gamma"][i % 3] + ` ${i + 1}`,
     status: i % 2 ? "draft" : "active",
     notes: "Zusätzliche Metadaten",
+    owner: "Team Forschung",
 }));
 const columns: Column<Row>[] = [
     { id: "name", header: "Name", sortable: true, minWidth: 150, cell: (row) => row.name },
     {
         id: "status",
+        cardRole: "badge",
         header: "Status",
         sortable: true,
         width: 160,
         cell: (row) => <Badge>{row.status}</Badge>,
     },
     { id: "notes", header: "Notizen", hidden: true, width: 200, cell: (row) => row.notes },
+    { id: "owner", header: "Verantwortlich", hidden: true, width: 180, cell: (row) => row.owner },
 ];
 
 /** Executable regression fixture and integration example; no application API calls. */
@@ -264,9 +267,43 @@ export function GridDemo() {
                         <DataGrid
                             columns={columns}
                             data={sort.sortedData}
+                            sections={
+                                testMode && params.has("grid-sections")
+                                    ? [
+                                          { key: "empty", header: "Leere Gruppe", data: [] },
+                                          ...["active", "draft"].map((status) => ({
+                                              key: status,
+                                              header: `Gruppe ${status}`,
+                                              data: sort.sortedData.filter(
+                                                  (row) => row.status === status,
+                                              ),
+                                          })),
+                                      ]
+                                    : undefined
+                            }
                             getRowId={(row) => row.id}
                             total={filtered.length}
                             selection={selection}
+                            getCard={
+                                testMode && params.has("grid-custom-metadata")
+                                    ? (row) => ({
+                                          title: row.name,
+                                          badges: <Badge>{row.status}</Badge>,
+                                          metadata: [
+                                              {
+                                                  columnId: "notes",
+                                                  label: "Notizen",
+                                                  value: row.notes,
+                                              },
+                                              {
+                                                  columnId: "owner",
+                                                  label: "Verantwortlich",
+                                                  value: row.owner,
+                                              },
+                                          ],
+                                      })
+                                    : undefined
+                            }
                             onSelectionChange={setSelection}
                             isRowSelectable={(row) => row.id !== "3"}
                             sort={sort.value}

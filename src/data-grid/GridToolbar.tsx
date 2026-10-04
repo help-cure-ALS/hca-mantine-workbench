@@ -1,7 +1,16 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
-import { ActionIcon, Group, Menu, Stack, Text, Tooltip, UnstyledButton } from "@mantine/core";
+import { useEffect, useId, useState, type CSSProperties, type ReactNode } from "react";
+import {
+    ActionIcon,
+    Group,
+    Indicator,
+    Menu,
+    Stack,
+    Text,
+    Tooltip,
+    UnstyledButton,
+} from "@mantine/core";
 import { Check, ChevronDown, Filter } from "lucide-react";
 import { SearchInput } from "../components/SearchInput";
 import { useGridContext } from "./GridProvider";
@@ -43,28 +52,47 @@ export function GridToolbar({
     children,
 }: GridToolbarProps) {
     const { labels, toolbarSlot } = useGridContext();
+    const filterCountId = useId();
     const [draft, setDraft] = useState(search?.value ?? "");
     useEffect(() => setDraft(search?.value ?? ""), [search?.value]);
     const apply = (value: string) => {
         if (value !== search?.value) search?.onChange(value);
     };
     return (
-        <Stack gap={8} p="sm">
-            <Group gap="sm" wrap="wrap">
+        <Stack gap={10} p="sm" className={classes.toolbar}>
+            <Group gap="sm" wrap="nowrap" className={classes.searchRow}>
                 {filters && (
-                    <ActionIcon
-                        size="lg"
-                        variant={filters.opened ? "light" : "default"}
-                        aria-label={filters.label ?? labels.filters}
-                        aria-pressed={filters.opened}
-                        onClick={filters.onToggle}
-                        title={filters.label ?? labels.filters}
+                    <Indicator
+                        disabled={(filters.count ?? 0) <= 0}
+                        label={<span id={filterCountId}>{filters.count}</span>}
+                        size={16}
+                        offset={3}
+                        styles={{
+                            root: {
+                                "--indicator-color": "var(--mantine-color-text)",
+                                "--indicator-text-color": "var(--mantine-color-body)",
+                            } as CSSProperties,
+                            indicator: { fontSize: 10, fontWeight: 600 },
+                        }}
                     >
-                        <Filter size={16} />
-                    </ActionIcon>
+                        <ActionIcon
+                            className={classes.filterToggle}
+                            size="lg"
+                            variant={filters.opened ? "filled" : "default"}
+                            color="gray"
+                            aria-label={filters.label ?? labels.filters}
+                            aria-describedby={(filters.count ?? 0) > 0 ? filterCountId : undefined}
+                            aria-pressed={filters.opened}
+                            onClick={filters.onToggle}
+                            title={filters.label ?? labels.filters}
+                        >
+                            <Filter size={16} />
+                        </ActionIcon>
+                    </Indicator>
                 )}
                 {search && (
                     <SearchInput
+                        className={classes.search}
                         aria-label={search.placeholder ?? labels.search}
                         placeholder={search.placeholder}
                         clearLabel={labels.clear}
@@ -82,7 +110,6 @@ export function GridToolbar({
                                 apply("");
                             }
                         }}
-                        style={{ flex: 1, minWidth: 160 }}
                     />
                 )}
                 {total !== undefined && (
@@ -91,13 +118,24 @@ export function GridToolbar({
                     </Text>
                 )}
                 {actions}
+                {toolbarSlot && (
+                    <Group gap="sm" wrap="nowrap" className={classes.viewControls}>
+                        <div ref={toolbarSlot.setElement} className={classes.columnsSlot} />
+                        <div ref={toolbarSlot.setLayoutElement} className={classes.layoutSlot} />
+                    </Group>
+                )}
             </Group>
             {(grouping || sorting || filters || children || toolbarSlot) && (
                 <Group gap="sm" wrap="wrap" justify="space-between">
                     <Group gap="sm" wrap="wrap">
                         {grouping && <GridToolbarMenu {...grouping} />}
+                        {toolbarSlot && (
+                            <div
+                                ref={toolbarSlot.setLeadingElement}
+                                style={{ display: "contents" }}
+                            />
+                        )}
                         {sorting && <GridToolbarMenu {...sorting} />}
-                        {toolbarSlot && <div ref={toolbarSlot.setLeadingElement} />}
                         {filters && (
                             <Tooltip
                                 disabled={!filters.items?.length}
@@ -127,14 +165,14 @@ export function GridToolbar({
                                 </div>
                             </Tooltip>
                         )}
+                        {toolbarSlot && (
+                            <div
+                                ref={toolbarSlot.setSelectionElement}
+                                style={{ display: "contents" }}
+                            />
+                        )}
                         {children}
                     </Group>
-                    {toolbarSlot && (
-                        <div
-                            ref={toolbarSlot.setElement}
-                            style={{ marginLeft: "auto", minWidth: 0 }}
-                        />
-                    )}
                 </Group>
             )}
         </Stack>

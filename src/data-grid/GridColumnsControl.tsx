@@ -58,6 +58,7 @@ export function GridColumnsControl<T>({
         column.ariaLabel ?? (typeof column.header === "string" ? column.header : column.id);
     return (
         <Popover
+            shadow="md"
             position="bottom-end"
             withinPortal
             width="min(340px, calc(100vw - 24px))"
@@ -68,7 +69,6 @@ export function GridColumnsControl<T>({
             <Popover.Target>
                 <Button
                     size="sm"
-                    h={32}
                     variant="default"
                     leftSection={<Columns3 size={15} />}
                     onClick={() => setOpened(!isOpen)}
@@ -257,6 +257,7 @@ function ColumnRow({
                 disabled={disabled}
                 onChange={onToggle}
                 style={{ flex: 1 }}
+                styles={{ label: { fontSize: 13 } }}
             />
         </Group>
     );

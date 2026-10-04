@@ -1,6 +1,8 @@
-# Shared DataGrid (HOPE-509, v0.3.1)
+# Shared DataGrid (HOPE-509, v0.3.2)
 
 `DataGrid` owns the three renderers, selection UI, column controls and the shared `GridCard` template. `GridToolbar`, `FilterPanel`, `SavedViews` and `DataGridLayout` provide the accompanying controls. Data fetching, authorization, navigation, translations and saved-view storage stay in the application. The package imports no router or application API.
+
+Version 0.3.2 includes the approved toolbar and card refinements: full-width search with Columns and layout controls on the same row, a 10px row gap, themed filter counters and menu shadows, cards up to 380px wide, shared metadata visibility/order, and hidden empty groups. The regular playground includes the full grid demo plus examples of fixed bookmark columns and explicit groups.
 
 ```tsx
 const adapter: GridStateAdapter = {
@@ -41,9 +43,10 @@ The provider is optional: standalone grids accept `stateAdapter` and `labels` di
 
 - All three layouts are enabled by default. `layouts` restricts the available modes. An unsupported saved mode falls back to the first enabled mode.
 - Every grid has a primary title column. `titleColumnId` selects it explicitly; otherwise the grid uses `cardRole="title"`, a conventional `title`/`name`/`claim_text`/`label` ID, or the first non-tight column. It is resolved before reordering or hiding columns. Plain title values receive 15px/600 typography automatically. For custom cells, put `data-grid-title` on the exact title text element and omit its local font size/weight, so subtitles and badges keep their styling.
-- Table cells use 6px vertical and 10px horizontal padding; tight selection/icon columns retain zero padding. The two toolbar rows are 8px apart. Result counts and group counts use 13px text.
+- Table cells use 6px vertical and 10px horizontal padding; tight selection/icon columns retain zero padding. The two toolbar rows are 10px apart. Result counts and group counts use 13px text.
 - Column IDs are stable persistence keys. `hideable`, `reorderable`, `resizable`, `hidden`, `minWidth` and `maxWidth` configure defaults and constraints. Fixed columns retain their original positions. At least one data column stays visible.
-- The Columns popover provides search, visibility checkboxes, a visible count, Show all, drag grips and Reset. Drag its rows or table headers to reorder. Fixed columns retain their positions, and the selection column is not configurable.
+- For a persistent icon/action column, set `hideable: false`, `resizable: false`, `width` and a localized `ariaLabel`. Its visibility and configured width override saved preferences; automatic fitting also respects the restriction. No column IDs carry special domain behavior.
+- The Columns popover is available in list, cards and Kanban. It provides search, visibility checkboxes, a visible count, Show all, drag grips and Reset. Drag its rows or table headers to reorder. Fixed columns retain their positions, and the selection column is not configurable.
 - Header separators resize directly; double-click or Enter fits the rendered content. The header menu offers sorting, fitting this/all visible columns, hiding and opening the column manager. Measurements include up to 100 currently rendered rows and respect configured width bounds. Virtualized and paginated grids do not fetch unseen records for measurement.
 - Keyboard alternatives: Alt + Up/Down on popover grips, Alt + Left/Right on headers, and Left/Right on resize separators. Escape cancels a drag. Reset restores configured defaults, including initially hidden columns.
 - `_grid` stores version 1 of `GridPresentation`: layout, hidden/shown IDs, order and widths. The existing `layout` URL key remains compatible. `readGridPresentation` tolerates missing/malformed/unknown versions and obsolete columns; `writeGridPresentation` preserves repeated domain query fields. `gridViewUrlParams` creates a portable link, including an explicit empty/default state.
@@ -60,7 +63,11 @@ The grid renders no duplicate selection count or clear button. Render the existi
 
 ## Cards, groups and boards
 
+Groups with no loaded rows are omitted in all three layouts, including explicit `sections` and configured board columns. They appear automatically once rows are available. When every group is empty, the usual loading or empty state is shown.
+
 `getCard` fills the fixed slots: icon, title, subtitle, description, metadata, badges and actions. Omitted slots fall back to column content. `Column.cardRole` controls that fallback; use `hidden` for table-only content. Interactive custom title nodes are rendered without nesting buttons. Kanban uses the same template with `compact` enabled.
+
+The label/value fields below the title follow the table's column visibility and order, including default-hidden columns and saved views. The title and upper badges remain visible when their table columns are hidden. For custom `getCard().metadata`, add `columnId` to bind a field to its column, for example `{ columnId: "author", label: "Author", value: row.authorName }`. Custom fields without a `columnId` stay visible after the column-linked fields and retain their own relative order.
 
 Use `sections` for server-provided groups. Supply each group's `total` when only part is loaded. A row may belong to several groups; selection uses its stable ID and the loaded count deduplicates IDs. Alternatively, `grouping` configures grouping of the loaded rows, including field options and key/label accessors. Search/filter/sort must be applied by the server for paginated datasets. Local processing is appropriate for a complete dataset; never represent a loaded subset as all matching results.
 

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import {
+    ActionIcon,
     Badge,
     Box,
     Button,
@@ -20,6 +21,7 @@ import {
 import { Drawer, useDrawersStack } from '@mantine/core';
 import { Board, CountrySelect, DataGrid, FormDrawer, PageHeader, SearchInput, type Column, type RowSelection } from '@hca/mantine-workbench';
 import { RichTextEditor } from '@hca/mantine-workbench/rich-text';
+import { Bookmark } from 'lucide-react';
 
 /**
  * Visual pre-release check for the workbench. Every section states what
@@ -36,7 +38,7 @@ const ROWS: Row[] = [
 
 const COLUMNS: Column<Row>[] = [
     { id: 'name', header: 'Name', sortable: true, minWidth: 160, cell: (row) => <Text data-grid-title>{row.name}</Text> },
-    { id: 'status', header: 'Status', width: 140, cell: (row) => <Badge variant="light">{row.status}</Badge> },
+    { id: 'status', header: 'Status', width: 140, cardRole: 'badge', cell: (row) => <Badge variant="light">{row.status}</Badge> },
 ];
 
 function Section({ title, expectation, children }: {
@@ -62,6 +64,7 @@ export function App() {
     const [selectValue, setSelectValue] = useState<string | null>('bravo');
     const [multiValue, setMultiValue] = useState<string[]>(['alpha', 'charlie']);
     const [search, setSearch] = useState('');
+    const [bookmarks, setBookmarks] = useState(new Set<string>());
     const [sectionSelection, setSectionSelection] = useState<RowSelection>(new Set());
     const [radioValue, setRadioValue] = useState('always');
     const drawers = useDrawersStack(['program', 'category', 'sibling', 'detail']);
@@ -215,12 +218,41 @@ export function App() {
 
                 <Section
                     title="Workbench-Komponenten (Smoke-Test)"
-                    expectation="PageHeader, SearchInput und DataGrid rendern ohne Fehler im Workbench-Stil."
+                    expectation="Die Lesezeichen-Spalte bleibt sichtbar und 40px breit, auch nach dem Zurücksetzen oder Anpassen aller Spaltenbreiten. Ihr Eintrag im Spaltenmenü ist beschriftet und gesperrt. Status-Pills erscheinen auf Cards über dem Titel. Der verlinkte DataGrid Playground zeigt die vollständige Toolbar, Sichten und Sammelaktionen."
                 >
                     <Button component="a" href="?grid-demo=1" variant="light">DataGrid Playground öffnen</Button>
                     <SearchInput value={search} onChange={setSearch} placeholder="Suchen …" style={{ maxWidth: 320 }} />
                     <DataGrid<Row>
-                        columns={COLUMNS}
+                        columns={[
+                            {
+                                id: 'bookmark',
+                                header: '',
+                                ariaLabel: 'Lesezeichen',
+                                width: 40,
+                                hideable: false,
+                                resizable: false,
+                                cardRole: 'actions',
+                                cell: (row) => (
+                                    <ActionIcon
+                                        variant="subtle"
+                                        color="gray"
+                                        aria-label={bookmarks.has(row.id) ? 'Lesezeichen entfernen' : 'Lesezeichen setzen'}
+                                        onClick={(event) => {
+                                            event.stopPropagation();
+                                            setBookmarks((current) => {
+                                                const next = new Set(current);
+                                                if (next.has(row.id)) next.delete(row.id);
+                                                else next.add(row.id);
+                                                return next;
+                                            });
+                                        }}
+                                    >
+                                        <Bookmark size={18} fill={bookmarks.has(row.id) ? 'currentColor' : 'none'} />
+                                    </ActionIcon>
+                                ),
+                            },
+                            ...COLUMNS,
+                        ]}
                         data={ROWS.filter((row) => row.name.toLowerCase().includes(search.toLowerCase()))}
                         getRowId={(row) => row.id}
                     />
@@ -427,7 +459,7 @@ export function App() {
 
                 <Section
                     title="DataGrid — gruppiert (sections)"
-                    expectation="Ein einziges Table mit EINER Kopfzeile ganz oben. Gruppen erscheinen als vollbreite Zeilen dazwischen (bold, mit Chevron und Linie darunter). Klick auf den Gruppen-Header klappt die Sektion ein/aus. Selection-All-Checkbox im Header wählt alle sichtbaren Rows über alle Gruppen."
+                    expectation="Eine gemeinsame Kopfzeile, Gruppen mit jeweils einem Zähler in 13px. Die leere Gruppe Geschlossen wird in Liste, Cards und Board ausgeblendet. Die Checkbox im Kopf wählt Einträge über alle Gruppen."
                 >
                     <DataGrid<Row>
                         columns={COLUMNS}
@@ -438,34 +470,18 @@ export function App() {
                         sections={[
                             {
                                 key: 'active',
-                                header: (
-                                    <Group gap={8} align="baseline">
-                                        <Text fw={500} fz={13}>Aktiv</Text>
-                                        <Text fz={12} c="dimmed" ff="monospace">{ROWS.slice(0, 2).length}</Text>
-                                    </Group>
-                                ),
+                                header: 'Aktiv',
                                 data: ROWS.slice(0, 2),
                             },
                             {
                                 key: 'pending',
-                                header: (
-                                    <Group gap={8} align="baseline">
-                                        <Text fw={500} fz={13}>Wartend</Text>
-                                        <Text fz={12} c="dimmed" ff="monospace">{ROWS.slice(2, 4).length}</Text>
-                                    </Group>
-                                ),
+                                header: 'Wartend',
                                 data: ROWS.slice(2, 4),
                             },
                             {
                                 key: 'closed',
-                                header: (
-                                    <Group gap={8} align="baseline">
-                                        <Text fw={500} fz={13}>Geschlossen</Text>
-                                        <Text fz={12} c="dimmed" ff="monospace">{ROWS.slice(4).length}</Text>
-                                    </Group>
-                                ),
+                                header: 'Geschlossen',
                                 data: ROWS.slice(4),
-                                defaultCollapsed: true,
                             },
                         ]}
                     />

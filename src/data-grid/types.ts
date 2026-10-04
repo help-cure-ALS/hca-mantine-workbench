@@ -51,7 +51,8 @@ export interface Column<T> {
     reorderable?: boolean;
     resizable?: boolean;
     maxWidth?: number;
-    /** Controls the common card template when no getCard mapping is supplied. */
+    /** Controls the default card content. Metadata follows column visibility/order;
+     *  title, subtitle, badges and actions remain independent of table preferences. */
     cardRole?: "title" | "subtitle" | "metadata" | "badge" | "actions" | "hidden";
     /** Internal resize binding supplied by DataGrid. */
     onResize?: (width: number, commit: boolean) => void;

@@ -83,6 +83,7 @@ try {
         },
     );
     await check("direct header drag, resize, fit and menu actions persist", async () => {
+        await page.locator(".mantine-Popover-dropdown").waitFor({ state: "hidden" });
         const status = page.locator('thead [data-column-id="status"] button').first();
         const name = page.locator('thead [data-column-id="name"] button').first();
         const source = await status.boundingBox(),
@@ -149,6 +150,92 @@ try {
             .getByRole("separator", { name: "Breite: Status", exact: true })
             .press("ArrowRight");
     });
+    await check(
+        "card details follow column visibility and order while titles and badges remain",
+        async () => {
+            for (const custom of [false, true]) {
+                const cards = await browser.newPage({ viewport: { width: 1440, height: 960 } });
+                cards.on("pageerror", (error) => errors.push(error.message));
+                try {
+                    await cards.goto(
+                        `${process.env.GRID_TEST_URL ?? "http://127.0.0.1:4190"}/?grid-test=1${custom ? "&grid-custom-metadata=1" : ""}`,
+                    );
+                    const firstCard = cards.locator(".mantine-Card-root").filter({
+                        has: cards.getByRole("checkbox", {
+                            name: "Eintrag auswählen: 1",
+                            exact: true,
+                        }),
+                    });
+                    const metadataIds = () =>
+                        firstCard
+                            .locator("[data-column-id]")
+                            .evaluateAll((fields) =>
+                                fields.map((field) => field.getAttribute("data-column-id")),
+                            );
+                    await cards.getByRole("button", { name: "Kacheln", exact: true }).click();
+                    await firstCard.waitFor();
+                    assert.deepEqual(await metadataIds(), []);
+                    await cards.getByRole("button", { name: "Spalten", exact: true }).click();
+                    await cards.getByRole("checkbox", { name: "Notizen", exact: true }).check();
+                    await cards
+                        .getByRole("checkbox", { name: "Verantwortlich", exact: true })
+                        .check();
+                    await cards
+                        .getByRole("button", {
+                            name: "Spalte verschieben: Verantwortlich",
+                            exact: true,
+                        })
+                        .press("Alt+ArrowUp");
+                    await cards.getByRole("checkbox", { name: "Status", exact: true }).uncheck();
+                    await cards.getByRole("checkbox", { name: "Name", exact: true }).uncheck();
+                    await cards.keyboard.press("Escape");
+                    assert.deepEqual(await metadataIds(), ["owner", "notes"]);
+                    await cards.getByRole("button", { name: "Liste", exact: true }).click();
+                    assert.deepEqual(await cards.locator("thead th").allTextContents(), [
+                        "",
+                        "Verantwortlich",
+                        "Notizen",
+                    ]);
+                    for (const layout of ["Kacheln", "Kanban"]) {
+                        await cards.getByRole("button", { name: layout, exact: true }).click();
+                        assert.deepEqual(await metadataIds(), ["owner", "notes"]);
+                        assert.equal(
+                            await firstCard
+                                .getByRole("button", { name: "Alpha 1", exact: true })
+                                .isVisible(),
+                            true,
+                        );
+                        assert.equal(
+                            await firstCard.locator(".mantine-Badge-root").innerText(),
+                            "ACTIVE",
+                        );
+                    }
+                    await cards.reload();
+                    await firstCard.waitFor();
+                    assert.deepEqual(await metadataIds(), ["owner", "notes"]);
+                    await cards.getByRole("button", { name: "Spalten", exact: true }).click();
+                    await cards.getByRole("checkbox", { name: "Notizen", exact: true }).uncheck();
+                    await cards.keyboard.press("Escape");
+                    for (const layout of ["Kacheln", "Kanban"]) {
+                        await cards.getByRole("button", { name: layout, exact: true }).click();
+                        assert.deepEqual(await metadataIds(), ["owner"]);
+                        assert.equal(
+                            await firstCard
+                                .getByText("Zusätzliche Metadaten", { exact: true })
+                                .count(),
+                            0,
+                        );
+                        assert.equal(
+                            await firstCard.locator(".mantine-Badge-root").innerText(),
+                            "ACTIVE",
+                        );
+                    }
+                } finally {
+                    await cards.close();
+                }
+            }
+        },
+    );
     await check(
         "one shared bulk bar works in all layouts and Escape respects popovers",
         async () => {
@@ -217,6 +304,7 @@ try {
     });
     await check("board move errors are visible; forbidden transitions absent", async () => {
         await page.getByRole("button", { name: "Kanban", exact: true }).click();
+        assert.equal(await page.getByText("Leer", { exact: true }).count(), 0);
         await page
             .getByRole("button", { name: "Verschiebefehler umschalten", exact: true })
             .click();
@@ -240,6 +328,7 @@ try {
         await card.getByRole("combobox", { name: "Verschieben nach", exact: true }).click();
         await page.getByRole("option", { name: "Entwurf", exact: true }).click();
         const groupText = await card
+            .locator("..")
             .locator("..")
             .locator(":scope > .mantine-Group-root")
             .first()
@@ -299,6 +388,7 @@ try {
             await page.getByRole("checkbox", { name: "Aktiv", exact: true }).check();
             assert.equal((await page.getByTestId("selected").innerText()).trim(), "Auswahl:");
             assert.equal(new URL(page.url()).searchParams.get("status"), "active");
+            await page.screenshot({ path: "/tmp/hope509-grid-filter-active.png", fullPage: true });
             assert.equal(
                 await page.getByRole("checkbox", { name: /^Eintrag auswählen:/ }).count(),
                 5,
@@ -344,15 +434,53 @@ try {
         const search = page.getByRole("textbox", { name: "Einträge suchen", exact: true });
         await search.fill("no-matching-record");
         await search.press("Enter");
-        for (const name of ["Liste", "Kacheln"]) {
+        for (const name of ["Liste", "Kacheln", "Kanban"]) {
             await page.getByRole("button", { name, exact: true }).click();
             await page.getByText("Keine Einträge", { exact: true }).waitFor();
         }
-        await page.getByRole("button", { name: "Kanban", exact: true }).click();
         assert.equal(await page.getByRole("checkbox", { name: /^Eintrag auswählen:/ }).count(), 0);
         for (const name of ["Entwurf", "Aktiv", "Leer"])
-            await page.getByText(name, { exact: true }).waitFor();
+            assert.equal(
+                await page.getByTestId("grid-viewport").getByText(name, { exact: true }).count(),
+                0,
+            );
     });
+    await check(
+        "explicit groups disappear when empty and return when filters are cleared in all layouts",
+        async () => {
+            const grouped = await context.newPage();
+            grouped.on("pageerror", (error) => errors.push(error.message));
+            try {
+                await grouped.goto(
+                    `${process.env.GRID_TEST_URL ?? "http://127.0.0.1:4190"}/?grid-test=1&grid-sections=1`,
+                );
+                const search = grouped.getByRole("textbox", {
+                    name: "Einträge suchen",
+                    exact: true,
+                });
+                for (const name of ["Liste", "Kacheln", "Kanban"]) {
+                    await grouped.getByRole("button", { name, exact: true }).click();
+                    await grouped.getByText("Gruppe active", { exact: true }).waitFor();
+                    await grouped.getByText("Gruppe draft", { exact: true }).waitFor();
+                    assert.equal(
+                        await grouped.getByText("Leere Gruppe", { exact: true }).count(),
+                        0,
+                    );
+                    await search.fill("Gamma 3");
+                    await search.press("Enter");
+                    await grouped
+                        .getByText("Gruppe draft", { exact: true })
+                        .waitFor({ state: "detached" });
+                    await grouped.getByText("Gruppe active", { exact: true }).waitFor();
+                    await search.fill("");
+                    await search.press("Enter");
+                    await grouped.getByText("Gruppe draft", { exact: true }).waitFor();
+                }
+            } finally {
+                await grouped.close();
+            }
+        },
+    );
     await check("sticky table headers keep the existing page scroll container", async () => {
         await page.setViewportSize({ width: 1440, height: 360 });
         const search = page.getByRole("textbox", { name: "Einträge suchen", exact: true });
@@ -374,6 +502,10 @@ try {
         preview.on("pageerror", (error) => errors.push(error.message));
         await preview.goto(`${process.env.GRID_TEST_URL ?? "http://127.0.0.1:4190"}/?grid-demo=1`);
         await preview.getByRole("heading", { name: "DataGrid", exact: true }).waitFor();
+        await preview.screenshot({
+            path: "/tmp/hope509-toolbar-search-full-width.png",
+            fullPage: true,
+        });
         await preview.getByRole("button", { name: "Filter", exact: true }).click();
         await preview.getByRole("checkbox", { name: "Eintrag auswählen: 1", exact: true }).check();
         await preview.getByRole("button", { name: "Spalten", exact: true }).click();
@@ -386,8 +518,77 @@ try {
             path: "/tmp/hope509-grid-columns-implemented.png",
             fullPage: true,
         });
+        await preview.keyboard.press("Escape");
+        await preview.keyboard.press("Escape");
+        for (const [name, file] of [
+            ["Kacheln", "cards"],
+            ["Kanban", "board"],
+        ]) {
+            await preview.getByRole("button", { name, exact: true }).click();
+            await preview.screenshot({
+                path: `/tmp/hope509-grid-${file}-preview.png`,
+                fullPage: true,
+            });
+        }
+        await preview.evaluate(() => localStorage.setItem("mantine-color-scheme-value", "dark"));
+        await preview.reload();
+        const filterToggle = preview.getByRole("button", { name: "Filter", exact: true });
+        if ((await filterToggle.getAttribute("aria-pressed")) !== "true")
+            await filterToggle.click();
+        await preview.getByRole("checkbox", { name: "Aktiv", exact: true }).check();
+        await preview.screenshot({ path: "/tmp/hope509-grid-filter-dark.png", fullPage: true });
         await preview.close();
     });
+    await check(
+        "playground catalogue demonstrates fixed bookmark columns and hidden empty groups",
+        async () => {
+            const catalogue = await context.newPage();
+            catalogue.on("pageerror", (error) => errors.push(error.message));
+            try {
+                await catalogue.goto(process.env.GRID_TEST_URL ?? "http://127.0.0.1:4190");
+                const sample = catalogue.locator(".mantine-Paper-root").filter({
+                    has: catalogue.getByRole("heading", {
+                        name: "Workbench-Komponenten (Smoke-Test)",
+                        exact: true,
+                    }),
+                });
+                const bookmark = sample.locator('thead [data-column-id="bookmark"]');
+                await bookmark.waitFor();
+                assert.ok(Math.abs((await bookmark.boundingBox()).width - 40) < 1);
+                assert.equal(await bookmark.getByRole("separator").count(), 0);
+                await sample.getByRole("button", { name: "Columns", exact: true }).click();
+                const option = catalogue
+                    .locator("[data-column-scope]")
+                    .getByRole("checkbox", { name: "Lesezeichen", exact: true });
+                assert.equal(await option.isChecked(), true);
+                assert.equal(await option.isDisabled(), true);
+                await catalogue.keyboard.press("Escape");
+                await sample
+                    .getByRole("button", { name: "Lesezeichen setzen", exact: true })
+                    .first()
+                    .click();
+                await sample
+                    .getByRole("button", { name: "Lesezeichen entfernen", exact: true })
+                    .waitFor();
+                const grouped = catalogue.locator(".mantine-Paper-root").filter({
+                    has: catalogue.getByRole("heading", {
+                        name: "DataGrid — gruppiert (sections)",
+                        exact: true,
+                    }),
+                });
+                for (const name of ["List", "Cards", "Kanban"]) {
+                    await grouped.getByRole("button", { name, exact: true }).click();
+                    await grouped.getByText("Wartend", { exact: true }).waitFor();
+                    assert.equal(
+                        await grouped.getByText("Geschlossen", { exact: true }).count(),
+                        0,
+                    );
+                }
+            } finally {
+                await catalogue.close();
+            }
+        },
+    );
     assert.deepEqual(errors, []);
     console.log("ALL BROWSER CHECKS PASSED");
 } catch (error) {

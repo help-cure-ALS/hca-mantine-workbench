@@ -8,7 +8,6 @@ import {
     Group,
     Loader,
     Select,
-    SimpleGrid,
     Stack,
     Text,
     UnstyledButton,
@@ -71,7 +70,11 @@ function cardFromColumns<T>(row: T, columns: Column<T>[], titleColumnId?: string
                     (column.width ?? 100) > 48 &&
                     (!column.cardRole || column.cardRole === "metadata"),
             )
-            .map((column) => ({ label: column.header, value: column.cell(row) })),
+            .map((column) => ({
+                columnId: column.id,
+                label: column.header,
+                value: column.cell(row),
+            })),
     };
 }
 
@@ -121,7 +124,7 @@ function GridContent<T>(props: DataGridProps<T>) {
     const [actionError, setActionError] = useState<string | null>(null);
     const [localGroup, setLocalGroup] = useState("none");
     const groupBy = stateAdapter?.params.get("group_by") ?? localGroup;
-    let sections = props.sections;
+    let sections = props.sections?.filter((section) => section.data.length > 0);
     if (!sections && props.grouping?.options.some((option) => option.value === groupBy)) {
         const buckets = new Map<string, T[]>();
         for (const row of data) {
@@ -188,6 +191,7 @@ function GridContent<T>(props: DataGridProps<T>) {
         ...state,
         widths: { ...state.widths, ...previewWidths },
     });
+    const cardFieldOrder = new Map(arranged.map((column, index) => [column.id, index]));
     const fit = (ids: string[]) => {
         const table = rootRef.current?.querySelector("table");
         if (!table) return;
@@ -256,6 +260,15 @@ function GridContent<T>(props: DataGridProps<T>) {
             ...cardFromColumns(row, columns, props.titleColumnId),
             ...getCard?.(row),
         };
+        // Only column-linked details follow table preferences. The title, badges and
+        // actions remain available; unlinked custom details retain their own order.
+        const metadata = content.metadata
+            ?.filter((field) => field.columnId === undefined || cardFieldOrder.has(field.columnId))
+            .sort(
+                (a, b) =>
+                    (cardFieldOrder.get(a.columnId ?? "") ?? Number.MAX_SAFE_INTEGER) -
+                    (cardFieldOrder.get(b.columnId ?? "") ?? Number.MAX_SAFE_INTEGER),
+            );
         const destinations =
             board?.onMove && board.canMove
                 ? board.columns.filter(
@@ -267,6 +280,7 @@ function GridContent<T>(props: DataGridProps<T>) {
             <GridCard
                 key={id}
                 {...content}
+                metadata={metadata}
                 compact={compact}
                 selected={selection.has(id)}
                 highlighted={props.highlightedRowId === id}
@@ -315,6 +329,7 @@ function GridContent<T>(props: DataGridProps<T>) {
         if (ungrouped.length)
             groups.push({ key: "__ungrouped", header: labels.ungrouped, data: ungrouped });
     }
+    groups = groups.filter((group) => group.data.length > 0);
     const partial = total !== undefined && total > rows.length;
     const groupCount = (group: DataGridSection<T>) => (
         <Text fz={13} c="dimmed">
@@ -348,7 +363,7 @@ function GridContent<T>(props: DataGridProps<T>) {
                 onSelectionChange={selectable ? setSelection : undefined}
             />
         );
-    else if (!rows.length && !(layout === "board" && board))
+    else if (!rows.length)
         content = (
             <Box p="xl" ta="center">
                 {loading ? <Loader /> : (props.emptyState ?? labels.empty)}
@@ -361,20 +376,14 @@ function GridContent<T>(props: DataGridProps<T>) {
                 aria-busy={loading || busy}
                 style={{ overflowX: "auto", opacity: loading ? 0.6 : undefined }}
             >
-                <div
-                    style={
-                        layout === "board"
-                            ? {
-                                  display: "grid",
-                                  gridAutoFlow: "column",
-                                  gridAutoColumns: "minmax(280px, 340px)",
-                                  gap: "var(--mantine-spacing-md)",
-                              }
-                            : undefined
-                    }
-                >
+                <div className={layout === "board" ? classes.board : undefined}>
                     {groups.map((group) => (
-                        <Stack key={group.key} gap="sm" mb="md">
+                        <Stack
+                            key={group.key}
+                            gap="sm"
+                            mb="md"
+                            className={layout === "board" ? classes.lane : undefined}
+                        >
                             {(layout === "board" || sections) && (
                                 <Group justify="space-between">
                                     <Text component="div" fw={600}>
@@ -384,11 +393,11 @@ function GridContent<T>(props: DataGridProps<T>) {
                                 </Group>
                             )}
                             {layout === "board" ? (
-                                group.data.map((row) => card(row, true))
+                                <Stack gap={16}>{group.data.map((row) => card(row, true))}</Stack>
                             ) : (
-                                <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md">
+                                <div className={classes.cards}>
                                     {group.data.map((row) => card(row))}
-                                </SimpleGrid>
+                                </div>
                             )}
                         </Stack>
                     ))}
@@ -396,7 +405,7 @@ function GridContent<T>(props: DataGridProps<T>) {
             </Box>
         );
     const leadingControls = controls ? (
-        <Group gap="sm" wrap="wrap">
+        <>
             {props.grouping && (
                 <GridToolbarMenu
                     label={labels.group}
@@ -439,78 +448,92 @@ function GridContent<T>(props: DataGridProps<T>) {
                         }}
                     />
                 )}
-            {selectable && layout !== "grid" && (
-                <Checkbox
-                    label={labels.selectPage}
-                    checked={
-                        selectableIds.length > 0 && selectableIds.every((id) => selection.has(id))
-                    }
-                    indeterminate={
-                        selectableIds.some((id) => selection.has(id)) &&
-                        !selectableIds.every((id) => selection.has(id))
-                    }
-                    disabled={loading || busy || !selectableIds.length}
-                    onChange={() => setSelection(toggleGridPage(selection, selectableIds))}
-                />
-            )}
-            {selectable && props.getAllMatchingIds && (
-                <Button
-                    variant="subtle"
-                    disabled={loading || busy}
-                    onClick={() => {
-                        const token = generation.current;
-                        void perform(async () => {
-                            const ids = await props.getAllMatchingIds!();
-                            if (token === generation.current) setSelection(new Set(ids));
-                        });
-                    }}
-                >
-                    {labels.allResults}
-                </Button>
-            )}
             {toolbar}
-        </Group>
+        </>
     ) : null;
-    const viewControls = controls ? (
-        <Group gap="sm" wrap="wrap">
-            {layout === "grid" && (
-                <GridColumnsControl
-                    columns={columns}
-                    state={state}
-                    onChange={update}
-                    labels={labels}
-                    opened={columnsOpened}
-                    onOpenedChange={setColumnsOpened}
-                />
-            )}
-            {layouts.length > 1 && (
-                <div className={classes.layouts} role="group" aria-label={labels.grid}>
-                    {layouts.map((value: GridLayout) => (
-                        <UnstyledButton
-                            className={classes.layout}
-                            key={value}
-                            aria-pressed={layout === value}
-                            onClick={() => update({ ...state, layout: value })}
-                        >
-                            {labels[value]}
-                        </UnstyledButton>
-                    ))}
-                </div>
-            )}
-        </Group>
+    const selectionControls =
+        controls && selectable && (layout !== "grid" || props.getAllMatchingIds) ? (
+            <Group gap="sm" wrap="wrap">
+                {layout !== "grid" && (
+                    <Checkbox
+                        label={labels.selectPage}
+                        checked={
+                            selectableIds.length > 0 &&
+                            selectableIds.every((id) => selection.has(id))
+                        }
+                        indeterminate={
+                            selectableIds.some((id) => selection.has(id)) &&
+                            !selectableIds.every((id) => selection.has(id))
+                        }
+                        disabled={loading || busy || !selectableIds.length}
+                        onChange={() => setSelection(toggleGridPage(selection, selectableIds))}
+                    />
+                )}
+                {props.getAllMatchingIds && (
+                    <Button
+                        variant="subtle"
+                        disabled={loading || busy}
+                        onClick={() => {
+                            const token = generation.current;
+                            void perform(async () => {
+                                const ids = await props.getAllMatchingIds!();
+                                if (token === generation.current) setSelection(new Set(ids));
+                            });
+                        }}
+                    >
+                        {labels.allResults}
+                    </Button>
+                )}
+            </Group>
+        ) : null;
+    const columnControls = controls ? (
+        <GridColumnsControl
+            columns={columns}
+            state={state}
+            onChange={update}
+            labels={labels}
+            opened={columnsOpened}
+            onOpenedChange={setColumnsOpened}
+        />
     ) : null;
+    const layoutControls =
+        controls && layouts.length > 1 ? (
+            <div className={classes.layouts} role="group" aria-label={labels.grid}>
+                {layouts.map((value: GridLayout) => (
+                    <UnstyledButton
+                        className={classes.layout}
+                        key={value}
+                        aria-pressed={layout === value}
+                        onClick={() => update({ ...state, layout: value })}
+                    >
+                        {labels[value]}
+                    </UnstyledButton>
+                ))}
+            </div>
+        ) : null;
     return (
         <Stack ref={rootRef} gap={0} style={{ minWidth: 0 }}>
-            {toolbarSlot?.element && toolbarSlot.leadingElement ? (
+            {toolbarSlot?.element &&
+            toolbarSlot.leadingElement &&
+            toolbarSlot.selectionElement &&
+            toolbarSlot.layoutElement ? (
                 <>
                     {createPortal(leadingControls, toolbarSlot.leadingElement)}
-                    {createPortal(viewControls, toolbarSlot.element)}
+                    {createPortal(selectionControls, toolbarSlot.selectionElement)}
+                    {createPortal(columnControls, toolbarSlot.element)}
+                    {createPortal(layoutControls, toolbarSlot.layoutElement)}
                 </>
             ) : (
                 controls && (
                     <Group p="sm" justify="space-between">
-                        {leadingControls}
-                        {viewControls}
+                        <Group gap="sm" wrap="wrap">
+                            {leadingControls}
+                            {selectionControls}
+                        </Group>
+                        <Group gap="sm" wrap="wrap">
+                            {columnControls}
+                            {layoutControls}
+                        </Group>
                     </Group>
                 )
             )}
@@ -518,11 +541,6 @@ function GridContent<T>(props: DataGridProps<T>) {
                 <Alert color="red" title={labels.error}>
                     {props.error ?? actionError}
                 </Alert>
-            )}
-            {partial && (
-                <Text px="sm" c="dimmed" role="status">
-                    {rows.length} / {total} {labels.loaded}
-                </Text>
             )}
             <Box
                 data-column-scroll
