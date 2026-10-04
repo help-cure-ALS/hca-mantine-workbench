@@ -1,921 +1,482 @@
 "use client";
 
-/**
- * `<DataGrid>` — Mantine v9 `Table` with sort, selection, empty and
- * skeleton state, and (opt-in) virtualization via a dedicated hook.
- *
- * Deliberately without TanStack Table and without react-window — the
- * lib stays free of second table engines. Columns are defined via our
- * `Column<T>` type; sort + selection run through the dedicated hooks
- * `useGridSort` and `useRowSelection`.
- *
- * Plain vs. virtualized:
- *   - **plain** (default) — all rows in the DOM. Up to ~500 rows this
- *     is simpler and has no layout trade-offs.
- *   - **virtualized** — opt-in via `virtualized={true}` plus a fixed
- *     `rowHeight`. Only visible rows + overscan in the DOM. Necessary
- *     from ~1000 rows (otherwise the initial paint gets slow).
- *
- * In virtualized mode the rows are absolutely positioned inside a
- * tbody with `display: block; height: totalHeight`. That is the
- * robust variant that also works in Safari with table children.
- *
- * Skeleton:
- *   When `loading` and `data.length === 0`, a skeleton table renders
- *   with the real column widths + ghost cells. That way the layout
- *   doesn't jump when the data arrives.
- */
-
-import { useMemo, useRef, useState, type CSSProperties } from "react";
 import {
+    Alert,
     Box,
+    Button,
     Checkbox,
     Group,
     Loader,
-    Skeleton,
+    Select,
+    SimpleGrid,
     Stack,
-    Table,
     Text,
-    UnstyledButton,
 } from "@mantine/core";
-import { ChevronDown, ChevronRight, ChevronUp, ChevronsUpDown } from "lucide-react";
-import type { Column, DataGridProps, DataGridSection, RowSelection, SortState } from "./types";
-import { nextSortForClick } from "./useGridSort";
-import { useVirtualRows } from "./useVirtualRows";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { DataTable } from "./DataTable";
+import { GridCard, type GridCardContent } from "./GridCard";
+import { GridColumnsControl } from "./GridColumnsControl";
+import { GridProvider, useGridContext } from "./GridProvider";
+import {
+    arrangeGridColumns,
+    defaultGridPresentation,
+    GRID_LAYOUTS,
+    gridSelectionScope,
+    readGridPresentation,
+    toggleGridPage,
+    writeGridPresentation,
+    type GridLayout,
+    type GridPresentation,
+} from "./grid-state";
+import type { Column, DataGridProps, DataGridSection } from "./types";
 
-const TIGHT_WIDTH_THRESHOLD = 48;
-
-export function DataGrid<T>({
-    columns,
-    data,
-    sections,
-    getRowId,
-    sort,
-    onSortChange,
-    selection,
-    onSelectionChange,
-    onRowClick,
-    highlightedRowId,
-    loading = false,
-    total,
-    emptyState,
-    stickyHeader = true,
-    hideHeader = false,
-    rowHeight,
-    virtualized = false,
-}: DataGridProps<T>) {
-    // In grouped mode the effective data is the concatenation of all
-    // section data (used for selection-all + empty-state detection).
-    const effectiveData = useMemo<T[]>(
-        () => (sections ? sections.flatMap((s) => s.data) : data),
-        [sections, data],
+function cardFromColumns<T>(row: T, columns: Column<T>[]): GridCardContent {
+    const fields = columns.filter(
+        (column) => column.cardRole !== "hidden" && column.id !== "__select",
     );
+    const title =
+        fields.find((column) => column.cardRole === "title") ??
+        fields.find((column) => /^(title|name|claim_text|label)$/.test(column.id)) ??
+        fields.find((column) => !column.tight && (column.width ?? 100) > 48);
+    const rawTitle =
+        row && typeof row === "object" && title
+            ? (row as Record<string, unknown>)[title.id]
+            : undefined;
+    return {
+        title:
+            typeof rawTitle === "string" || typeof rawTitle === "number"
+                ? rawTitle
+                : title?.cell(row),
+        subtitle: fields.find((column) => column.cardRole === "subtitle")?.cell(row),
+        badges: fields
+            .filter((column) => column.cardRole === "badge")
+            .map((column) => <Box key={column.id}>{column.cell(row)}</Box>),
+        actions: fields
+            .filter(
+                (column) =>
+                    column.cardRole === "actions" || column.tight || (column.width ?? 100) <= 48,
+            )
+            .map((column) => <Box key={column.id}>{column.cell(row)}</Box>),
+        metadata: fields
+            .filter(
+                (column) =>
+                    column !== title &&
+                    !column.tight &&
+                    (column.width ?? 100) > 48 &&
+                    (!column.cardRole || column.cardRole === "metadata"),
+            )
+            .map((column) => ({ label: column.header, value: column.cell(row) })),
+    };
+}
 
-    // The selection column is automatically inserted at the front when the
-    // caller sets both `selection` and `onSelectionChange`. To only display
-    // selection (without click handling), build a custom column and
-    // inject the selection set yourself.
-    const columnsWithSelect: Column<T>[] = useMemo(() => {
-        if (!selection || !onSelectionChange) {
-            return columns;
+/** Shared controls and renderers; fetching and business mutations belong to the consumer. */
+export function DataGrid<T>(props: DataGridProps<T>) {
+    return (
+        <GridProvider stateAdapter={props.stateAdapter} labels={props.labels}>
+            <GridContent {...props} />
+        </GridProvider>
+    );
+}
+
+function GridContent<T>(props: DataGridProps<T>) {
+    const { labels, stateAdapter, contextKey: environmentKey } = useGridContext();
+    const {
+        columns,
+        data,
+        getRowId,
+        loading,
+        total,
+        onRowClick,
+        getCard,
+        controls = true,
+        selectable = true,
+        board,
+        isRowSelectable,
+        toolbar,
+    } = props;
+    const [localState, setLocalState] = useState(defaultGridPresentation);
+    const [localSelection, setLocalSelection] = useState<Set<string>>(new Set());
+    const [previewWidths, setPreviewWidths] = useState<Record<string, number>>({});
+    const [busy, setBusy] = useState(false);
+    const [actionError, setActionError] = useState<string | null>(null);
+    const [localGroup, setLocalGroup] = useState("none");
+    const groupBy = stateAdapter?.params.get("group_by") ?? localGroup;
+    let sections = props.sections;
+    if (!sections && props.grouping?.options.some((option) => option.value === groupBy)) {
+        const buckets = new Map<string, T[]>();
+        for (const row of data) {
+            const key = props.grouping.getKey(row, groupBy) ?? "";
+            buckets.set(key, [...(buckets.get(key) ?? []), row]);
         }
-        return [
-            makeSelectionColumn<T>(effectiveData, selection, onSelectionChange, getRowId),
-            ...columns,
-        ];
-    }, [columns, selection, onSelectionChange, effectiveData, getRowId]);
-
-    if (loading && effectiveData.length === 0) {
+        sections = [...buckets].map(([key, rows]) => ({
+            key,
+            data: rows,
+            header: key ? (props.grouping?.getLabel?.(key, groupBy) ?? key) : labels.ungrouped,
+        }));
+    }
+    const generation = useRef(0);
+    const state =
+        props.presentation ??
+        (stateAdapter ? readGridPresentation(stateAdapter.params) : localState);
+    const layouts = props.layouts?.length ? props.layouts : GRID_LAYOUTS;
+    const layout = layouts.includes(state.layout) ? state.layout : layouts[0];
+    const selection = props.selection ?? localSelection;
+    const setSelection = useCallback(
+        (next: Set<string>) => {
+            if (!props.selection) setLocalSelection(next);
+            props.onSelectionChange?.(next);
+        },
+        [props.selection, props.onSelectionChange],
+    );
+    const rows = sections
+        ? [
+              ...new Map(
+                  sections.flatMap((section) => section.data).map((row) => [getRowId(row), row]),
+              ).values(),
+          ]
+        : data;
+    const selectableIds = rows
+        .filter((row) => !isRowSelectable || isRowSelectable(row))
+        .map(getRowId);
+    const contextKey = `${environmentKey ?? ""}:${props.selectionContextKey ?? stateAdapter?.contextKey ?? ""}:${stateAdapter ? gridSelectionScope(stateAdapter.params) : ""}`;
+    const previousContext = useRef(contextKey);
+    useEffect(() => {
+        if (previousContext.current !== contextKey) {
+            previousContext.current = contextKey;
+            generation.current++;
+            setSelection(new Set());
+            setBusy(false);
+            setActionError(null);
+            setPreviewWidths({});
+            setLocalState(defaultGridPresentation());
+        }
+    }, [contextKey, setSelection]);
+    useEffect(
+        () => () => {
+            generation.current++;
+        },
+        [],
+    );
+    const update = (next: GridPresentation) => {
+        if (props.onPresentationChange) props.onPresentationChange(next);
+        else if (stateAdapter)
+            stateAdapter.onChange(writeGridPresentation(stateAdapter.params, next));
+        else setLocalState(next);
+    };
+    const visibleColumns = arrangeGridColumns(columns, {
+        ...state,
+        widths: { ...state.widths, ...previewWidths },
+    }).map((column) => ({
+        ...column,
+        onResize:
+            column.resizable === false
+                ? undefined
+                : (width: number, commit: boolean) => {
+                      if (commit) {
+                          update({ ...state, widths: { ...state.widths, [column.id]: width } });
+                          setPreviewWidths({});
+                      } else setPreviewWidths((current) => ({ ...current, [column.id]: width }));
+                  },
+    }));
+    const toggle = (row: T) => {
+        if (isRowSelectable && !isRowSelectable(row)) return;
+        const id = getRowId(row),
+            next = new Set(selection);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        setSelection(next);
+    };
+    const perform = async (operation: () => Promise<void>) => {
+        const token = generation.current;
+        setBusy(true);
+        setActionError(null);
+        try {
+            await operation();
+        } catch (error) {
+            if (token === generation.current)
+                setActionError(error instanceof Error ? error.message : labels.moveFailed);
+        } finally {
+            if (token === generation.current) setBusy(false);
+        }
+    };
+    const card = (row: T, compact = false) => {
+        const id = getRowId(row);
+        const content = { ...cardFromColumns(row, columns), ...getCard?.(row) };
+        const destinations =
+            board?.onMove && board.canMove
+                ? board.columns.filter(
+                      (column) =>
+                          column.key !== board.getColumn(row) && board.canMove!(row, column.key),
+                  )
+                : [];
         return (
-            <SkeletonTable
-                columns={columnsWithSelect}
-                rowCount={12}
-                stickyHeader={stickyHeader}
-                hideHeader={hideHeader}
+            <GridCard
+                key={id}
+                {...content}
+                compact={compact}
+                selected={selection.has(id)}
+                highlighted={props.highlightedRowId === id}
+                selectable={selectable}
+                selectionDisabled={loading || busy || (isRowSelectable && !isRowSelectable(row))}
+                selectionLabel={`${labels.select}: ${id}`}
+                onSelect={() => toggle(row)}
+                onOpen={onRowClick && !loading && !busy ? () => onRowClick(row) : undefined}
+                openLabel={labels.open}
+                actions={
+                    <>
+                        {content.actions}
+                        {compact && destinations.length > 0 && (
+                            <Select
+                                aria-label={labels.move}
+                                placeholder={labels.move}
+                                value={null}
+                                disabled={busy || loading}
+                                data={destinations.map((column) => ({
+                                    value: column.key,
+                                    label: column.label,
+                                }))}
+                                onChange={(target) => {
+                                    if (target && board?.onMove && board.canMove?.(row, target))
+                                        void perform(() => board.onMove!(row, target));
+                                }}
+                            />
+                        )}
+                    </>
+                }
             />
         );
+    };
+    let groups: DataGridSection<T>[] = sections ?? [
+        { key: "__ungrouped", header: labels.ungrouped, data: rows },
+    ];
+    if (layout === "board" && board && (!props.grouping || !sections)) {
+        groups = board.columns.map((column) => ({
+            key: column.key,
+            header: column.label,
+            total: column.total,
+            data: rows.filter((row) => board.getColumn(row) === column.key),
+        }));
+        const known = new Set(board.columns.map((column) => column.key));
+        const ungrouped = rows.filter((row) => !known.has(board.getColumn(row) ?? ""));
+        if (ungrouped.length)
+            groups.push({ key: "__ungrouped", header: labels.ungrouped, data: ungrouped });
     }
-
-    if (!loading && effectiveData.length === 0) {
-        return (
-            <Stack align="center" justify="center" p="xl" gap="xs">
-                {emptyState ?? <Text c="dimmed">No entries</Text>}
-            </Stack>
-        );
-    }
-
-    const viewNode = sections ? (
-        <SectionedView
-            columns={columnsWithSelect}
-            sections={sections}
-            getRowId={getRowId}
-            stickyHeader={stickyHeader}
-            hideHeader={hideHeader}
-            sort={sort}
-            onSortChange={onSortChange}
-            selection={selection}
-            onSelectionChange={onSelectionChange}
-            onRowClick={onRowClick}
-            highlightedRowId={highlightedRowId}
-        />
-    ) : virtualized && rowHeight ? (
-        <VirtualizedView
-            columns={columnsWithSelect}
-            data={data}
-            getRowId={getRowId}
-            rowHeight={rowHeight}
-            stickyHeader={stickyHeader}
-            hideHeader={hideHeader}
-            sort={sort}
-            onSortChange={onSortChange}
-            selection={selection}
-            onSelectionChange={onSelectionChange}
-            onRowClick={onRowClick}
-            highlightedRowId={highlightedRowId}
-            total={total}
-        />
-    ) : (
-        <PlainView
-            columns={columnsWithSelect}
-            data={data}
-            getRowId={getRowId}
-            rowHeight={rowHeight}
-            stickyHeader={stickyHeader}
-            hideHeader={hideHeader}
-            sort={sort}
-            onSortChange={onSortChange}
-            selection={selection}
-            onSelectionChange={onSelectionChange}
-            onRowClick={onRowClick}
-            highlightedRowId={highlightedRowId}
-            total={total}
-        />
+    const partial = total !== undefined && total > rows.length;
+    const groupCount = (group: DataGridSection<T>) => (
+        <Text c="dimmed">
+            {group.total !== undefined
+                ? `${group.data.length} / ${group.total}`
+                : group.data.length}
+            {partial && group.total === undefined ? ` ${labels.loaded}` : ""}
+        </Text>
     );
-
-    // Re-fetch-Zustand: bestehende Rows bleiben sichtbar, werden aber
-    // gedimmt und Klick-blockiert; ein Spinner bleibt beim Scrollen im
-    // Viewport sichtbar. Standard-Muster für Filter-/Sort-Wechsel.
-    // Wir bauen das Overlay manuell statt Mantine `LoadingOverlay`,
-    // weil dessen Spinner absolut zum Overlay-Container zentriert wird
-    // — bei sehr langen Tabellen läge er tief unten und wäre unsichtbar.
-    // Der Spinner sitzt `position: sticky` und bleibt so im äusseren
-    // Scroll-Container mittig sichtbar.
-    if (loading) {
-        return (
-            <Box style={{ position: "relative" }}>
-                <div
-                    aria-hidden
-                    style={{
-                        position: "absolute",
-                        inset: 0,
-                        background: "rgba(255, 255, 255, 0.55)",
-                        zIndex: 5,
-                    }}
-                />
-                <div
-                    style={{
-                        position: "sticky",
-                        top: "50%",
-                        display: "flex",
-                        justifyContent: "center",
-                        zIndex: 6,
-                        pointerEvents: "none",
-                        height: 0,
-                    }}
-                >
-                    <Loader size="sm" />
-                </div>
-                {viewNode}
+    let content: ReactNode;
+    if (layout === "grid")
+        content = (
+            <DataTable
+                {...props}
+                sections={sections?.map((group) => ({
+                    ...group,
+                    header: (
+                        <Group justify="space-between">
+                            <div>{group.header}</div>
+                            {groupCount(group)}
+                        </Group>
+                    ),
+                }))}
+                columns={visibleColumns}
+                onRowClick={loading || busy ? undefined : onRowClick}
+                isRowSelectable={(row) =>
+                    !loading && !busy && (!isRowSelectable || isRowSelectable(row))
+                }
+                selection={selectable ? selection : undefined}
+                onSelectionChange={selectable ? setSelection : undefined}
+            />
+        );
+    else if (!rows.length && !(layout === "board" && board))
+        content = (
+            <Box p="xl" ta="center">
+                {loading ? <Loader /> : (props.emptyState ?? labels.empty)}
             </Box>
         );
-    }
-    return viewNode;
-}
-
-// ─── Shared sub-components ──────────────────────────────────────────
-
-interface ViewProps<T> {
-    columns: Column<T>[];
-    data: T[];
-    getRowId: (row: T) => string;
-    rowHeight?: number;
-    stickyHeader: boolean;
-    hideHeader: boolean;
-    sort?: SortState;
-    onSortChange?: (next: SortState) => void;
-    selection?: RowSelection;
-    onSelectionChange?: (next: RowSelection) => void;
-    onRowClick?: (row: T) => void;
-    highlightedRowId?: string | null;
-    total?: number;
-}
-
-function PlainView<T>({
-    columns,
-    data,
-    getRowId,
-    rowHeight,
-    stickyHeader,
-    hideHeader,
-    sort,
-    onSortChange,
-    selection,
-    onSelectionChange,
-    onRowClick,
-    highlightedRowId,
-    total,
-}: ViewProps<T>) {
-    // CSS spec: `table-layout: fixed` IGNORES `min-width` on cells.
-    // If even one column with `minWidth` (without `width`) exists,
-    // we switch to `auto` — there the browser respects min-width,
-    // and columns with an explicit `width` still stay fixed.
-    const hasFlexColumn = columns.some((c) => c.minWidth != null && c.width == null);
-    const tableLayout = hasFlexColumn ? "auto" : "fixed";
-    return (
-        <Table
-            highlightOnHover
-            verticalSpacing={6}
-            horizontalSpacing="md"
-            withRowBorders
-            stickyHeader={stickyHeader}
-            layout={tableLayout}
-        >
-            {!hideHeader && (
-                <Table.Thead>
-                    <Table.Tr>
-                        {columns.map((col) => (
-                            <HeaderCell
-                                key={col.id}
-                                col={col}
-                                sort={sort}
-                                onSortChange={onSortChange}
-                            />
-                        ))}
-                    </Table.Tr>
-                </Table.Thead>
-            )}
-            <Table.Tbody>
-                {data.map((row) => {
-                    const id = getRowId(row);
-                    const isHighlighted = highlightedRowId === id;
-                    const isSelected = !!selection?.has(id);
-                    const hasSelection = !!selection && !!onSelectionChange;
-                    const rowBackground = isSelected
-                        ? // Same accent-light tone the Moonshot frontend used (#f3e8fb)
-                          // but pinned to a CSS var so consumers can override.
-                          "var(--mantine-workbench-row-selected-bg, #f3e8fb)"
-                        : isHighlighted
-                          ? "var(--mantine-color-default-hover)"
-                          : undefined;
-                    const handleRowClick =
-                        onRowClick || hasSelection
-                            ? () => {
-                                  if (hasSelection) {
-                                      onSelectionChange!(new Set([id]));
-                                  }
-                                  if (onRowClick) {
-                                      onRowClick(row);
-                                  }
-                              }
-                            : undefined;
-                    return (
-                        <Table.Tr
-                            key={id}
-                            data-selected={isSelected || isHighlighted}
-                            onClick={handleRowClick}
-                            style={{
-                                cursor: handleRowClick ? "pointer" : undefined,
-                                background: rowBackground,
-                                height: rowHeight,
-                            }}
-                        >
-                            {columns.map((col) => (
-                                <BodyCell key={col.id} col={col} row={row} />
-                            ))}
-                        </Table.Tr>
-                    );
-                })}
-            </Table.Tbody>
-            {typeof total === "number" && total > data.length && (
-                <FooterPager total={total} shown={data.length} columnCount={columns.length} />
-            )}
-        </Table>
-    );
-}
-
-function VirtualizedView<T>({
-    columns,
-    data,
-    getRowId,
-    rowHeight,
-    stickyHeader,
-    hideHeader,
-    sort,
-    onSortChange,
-    selection,
-    onSelectionChange,
-    onRowClick,
-    highlightedRowId,
-    total,
-}: ViewProps<T> & { rowHeight: number }) {
-    const containerRef = useRef<HTMLDivElement | null>(null);
-    const { startIndex, endIndex, totalHeight } = useVirtualRows(
-        containerRef,
-        data.length,
-        rowHeight,
-    );
-
-    const visibleRows = useMemo(
-        () => data.slice(startIndex, endIndex),
-        [data, startIndex, endIndex],
-    );
-
-    // See PlainView: `min-width` on cells only takes effect with
-    // `table-layout: auto`. Detection is identical.
-    const hasFlexColumn = columns.some((c) => c.minWidth != null && c.width == null);
-    const tableLayout = hasFlexColumn ? "auto" : "fixed";
-    return (
-        <Box ref={containerRef} style={{ height: "100%", overflow: "auto", position: "relative" }}>
-            <Table
-                highlightOnHover
-                verticalSpacing={0}
-                horizontalSpacing="md"
-                withRowBorders
-                stickyHeader={stickyHeader}
-                style={{ tableLayout }}
+    else
+        content = (
+            <Box
+                p="md"
+                aria-busy={loading || busy}
+                style={{ overflowX: "auto", opacity: loading ? 0.6 : undefined }}
             >
-                {!hideHeader && (
-                    <Table.Thead>
-                        <Table.Tr>
-                            {columns.map((col) => (
-                                <HeaderCell
-                                    key={col.id}
-                                    col={col}
-                                    sort={sort}
-                                    onSortChange={onSortChange}
-                                />
-                            ))}
-                        </Table.Tr>
-                    </Table.Thead>
-                )}
-                <Table.Tbody
-                    style={{
-                        display: "block",
-                        height: totalHeight,
-                        position: "relative",
-                    }}
+                <div
+                    style={
+                        layout === "board"
+                            ? {
+                                  display: "grid",
+                                  gridAutoFlow: "column",
+                                  gridAutoColumns: "minmax(280px, 340px)",
+                                  gap: "var(--mantine-spacing-md)",
+                              }
+                            : undefined
+                    }
                 >
-                    {visibleRows.map((row, i) => {
-                        const absoluteIndex = startIndex + i;
-                        const id = getRowId(row);
-                        const isHighlighted = highlightedRowId === id;
-                        const isSelected = !!selection?.has(id);
-                        const hasSelection = !!selection && !!onSelectionChange;
-                        const rowBackground = isSelected
-                            ? "var(--mantine-workbench-row-selected-bg, #f3e8fb)"
-                            : isHighlighted
-                              ? "var(--mantine-color-default-hover)"
-                              : undefined;
-                        const handleRowClick =
-                            onRowClick || hasSelection
-                                ? () => {
-                                      if (hasSelection) {
-                                          onSelectionChange!(new Set([id]));
-                                      }
-                                      if (onRowClick) {
-                                          onRowClick(row);
-                                      }
-                                  }
-                                : undefined;
-                        return (
-                            <Table.Tr
-                                key={id}
-                                data-selected={isSelected || isHighlighted}
-                                onClick={handleRowClick}
-                                style={{
-                                    position: "absolute",
-                                    top: 0,
-                                    left: 0,
-                                    right: 0,
-                                    transform: `translateY(${absoluteIndex * rowHeight}px)`,
-                                    display: "table",
-                                    // Auto vs. fixed — see the detection above in
-                                    // VirtualizedView. Virtualized rows must use the
-                                    // same layout as the outer table.
-                                    tableLayout,
-                                    width: "100%",
-                                    height: rowHeight,
-                                    cursor: handleRowClick ? "pointer" : undefined,
-                                    background: rowBackground,
+                    {groups.map((group) => (
+                        <Stack key={group.key} gap="sm" mb="md">
+                            {(layout === "board" || sections) && (
+                                <Group justify="space-between">
+                                    <Text component="div" fw={600}>
+                                        {group.header}
+                                    </Text>
+                                    {groupCount(group)}
+                                </Group>
+                            )}
+                            {layout === "board" ? (
+                                group.data.map((row) => card(row, true))
+                            ) : (
+                                <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md">
+                                    {group.data.map((row) => card(row))}
+                                </SimpleGrid>
+                            )}
+                        </Stack>
+                    ))}
+                </div>
+            </Box>
+        );
+    return (
+        <Stack gap={0} style={{ minWidth: 0 }}>
+            {controls && (
+                <Group gap="sm" p="sm" wrap="wrap" justify="space-between" aria-label={labels.grid}>
+                    <Group gap="sm" wrap="wrap">
+                        {selectable && (
+                            <Checkbox
+                                label={labels.selectPage}
+                                checked={
+                                    selectableIds.length > 0 &&
+                                    selectableIds.every((id) => selection.has(id))
+                                }
+                                indeterminate={
+                                    selectableIds.some((id) => selection.has(id)) &&
+                                    !selectableIds.every((id) => selection.has(id))
+                                }
+                                disabled={loading || busy || !selectableIds.length}
+                                onChange={() =>
+                                    setSelection(toggleGridPage(selection, selectableIds))
+                                }
+                            />
+                        )}
+                        {selectable && selection.size > 0 && (
+                            <>
+                                <Text aria-live="polite">
+                                    {selection.size} {labels.selected}
+                                </Text>
+                                <Button variant="subtle" onClick={() => setSelection(new Set())}>
+                                    {labels.clear}
+                                </Button>
+                            </>
+                        )}
+                        {selectable && props.getAllMatchingIds && (
+                            <Button
+                                variant="subtle"
+                                disabled={loading || busy}
+                                onClick={() => {
+                                    const token = generation.current;
+                                    void perform(async () => {
+                                        const ids = await props.getAllMatchingIds!();
+                                        if (token === generation.current)
+                                            setSelection(new Set(ids));
+                                    });
                                 }}
                             >
-                                {columns.map((col) => (
-                                    <BodyCell key={col.id} col={col} row={row} />
-                                ))}
-                            </Table.Tr>
-                        );
-                    })}
-                </Table.Tbody>
-                {typeof total === "number" && total > data.length && (
-                    <FooterPager total={total} shown={data.length} columnCount={columns.length} />
-                )}
-            </Table>
-        </Box>
-    );
-}
-
-// ─── Sectioned view (grouped rows) ─────────────────────────────────
-
-interface SectionedViewProps<T> {
-    columns: Column<T>[];
-    sections: DataGridSection<T>[];
-    getRowId: (row: T) => string;
-    stickyHeader: boolean;
-    hideHeader: boolean;
-    sort?: SortState;
-    onSortChange?: (next: SortState) => void;
-    selection?: RowSelection;
-    onSelectionChange?: (next: RowSelection) => void;
-    onRowClick?: (row: T) => void;
-    highlightedRowId?: string | null;
-}
-
-function SectionedView<T>({
-    columns,
-    sections,
-    getRowId,
-    stickyHeader,
-    hideHeader,
-    sort,
-    onSortChange,
-    selection,
-    onSelectionChange,
-    onRowClick,
-    highlightedRowId,
-}: SectionedViewProps<T>) {
-    // Uncontrolled collapse state. Section defaults come from
-    // `defaultCollapsed`; user clicks flip a section in the local Set.
-    const [collapsed, setCollapsed] = useState<Set<string>>(() => {
-        const initial = new Set<string>();
-        for (const s of sections) {
-            if (s.defaultCollapsed) initial.add(s.key);
-        }
-        return initial;
-    });
-    const toggleCollapsed = (key: string) => {
-        setCollapsed((prev) => {
-            const next = new Set(prev);
-            if (next.has(key)) next.delete(key);
-            else next.add(key);
-            return next;
-        });
-    };
-
-    const hasFlexColumn = columns.some((c) => c.minWidth != null && c.width == null);
-    const tableLayout = hasFlexColumn ? "auto" : "fixed";
-    return (
-        <Table
-            highlightOnHover
-            verticalSpacing={6}
-            horizontalSpacing="md"
-            withRowBorders
-            stickyHeader={stickyHeader}
-            layout={tableLayout}
-        >
-            {!hideHeader && (
-                <Table.Thead>
-                    <Table.Tr>
-                        {columns.map((col) => (
-                            <HeaderCell
-                                key={col.id}
-                                col={col}
-                                sort={sort}
-                                onSortChange={onSortChange}
+                                {labels.allResults}
+                            </Button>
+                        )}
+                        {toolbar}
+                    </Group>
+                    <Group gap="sm">
+                        {props.grouping && (
+                            <Select
+                                aria-label={labels.group}
+                                value={groupBy}
+                                allowDeselect={false}
+                                data={[
+                                    { value: "none", label: labels.none },
+                                    ...props.grouping.options,
+                                ]}
+                                onChange={(value) => {
+                                    if (!value) return;
+                                    if (stateAdapter) {
+                                        const next = new URLSearchParams(stateAdapter.params);
+                                        next.set("group_by", value);
+                                        stateAdapter.onChange(next);
+                                    } else setLocalGroup(value);
+                                }}
                             />
-                        ))}
-                    </Table.Tr>
-                </Table.Thead>
-            )}
-            <Table.Tbody>
-                {sections.map((section) => {
-                    const isCollapsed = collapsed.has(section.key);
-                    // Kollabieren ist opt-in — Standard ist eine statische
-                    // Gruppierung ohne Chevron/Klick-Toggle. Passt zum
-                    // Default-Verhalten der meisten Data-Grids und hält
-                    // die einfachste Nutzung frei von Interaktion.
-                    const collapsible = section.collapsible === true;
-                    return (
-                        <SectionFragment
-                            key={section.key}
-                            section={section}
-                            columns={columns}
-                            isCollapsed={isCollapsed}
-                            collapsible={collapsible}
-                            onToggle={() => toggleCollapsed(section.key)}
-                            getRowId={getRowId}
-                            selection={selection}
-                            onSelectionChange={onSelectionChange}
-                            onRowClick={onRowClick}
-                            highlightedRowId={highlightedRowId}
-                        />
-                    );
-                })}
-            </Table.Tbody>
-        </Table>
-    );
-}
-
-function SectionFragment<T>({
-    section,
-    columns,
-    isCollapsed,
-    collapsible,
-    onToggle,
-    getRowId,
-    selection,
-    onSelectionChange,
-    onRowClick,
-    highlightedRowId,
-}: {
-    section: DataGridSection<T>;
-    columns: Column<T>[];
-    isCollapsed: boolean;
-    collapsible: boolean;
-    onToggle: () => void;
-    getRowId: (row: T) => string;
-    selection?: RowSelection;
-    onSelectionChange?: (next: RowSelection) => void;
-    onRowClick?: (row: T) => void;
-    highlightedRowId?: string | null;
-}) {
-    return (
-        <>
-            <Table.Tr
-                // Mantine `highlightOnHover` gilt für die ganze Table.
-                // Für Section-Header-Zeilen wollen wir keinen Hover-
-                // Wechsel — sonst blitzt der Titel beim Cursor auf.
-                // Über die CSS-Variable pro Row lässt sich das gezielt
-                // deaktivieren, ohne die Table-Prop zu ändern.
-                style={{ ["--table-hover-color" as string]: "transparent" }}
-            >
-                <Table.Td
-                    colSpan={columns.length}
-                    style={{
-                        // Grosszügiger top-padding schafft die visuelle
-                        // Trennung zwischen einer vorherigen Gruppe und
-                        // der neuen Section-Überschrift, ohne dass es
-                        // dazwischen eine hart gezogene Linie braucht.
-                        padding: "20px 16px 8px",
-                        borderBottom: "1px solid var(--mantine-color-default-border)",
-                        background: "transparent",
-                    }}
-                >
-                    <UnstyledButton
-                        component={collapsible ? "button" : "div"}
-                        onClick={collapsible ? onToggle : undefined}
-                        style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 8,
-                            width: "100%",
-                            cursor: collapsible ? "pointer" : "default",
-                            font: "inherit",
-                            color: "inherit",
-                        }}
-                    >
-                        {collapsible &&
-                            (isCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />)}
-                        <span style={{ flex: 1, fontWeight: 600, fontSize: 13 }}>
-                            {section.header}
-                        </span>
-                    </UnstyledButton>
-                </Table.Td>
-            </Table.Tr>
-            {!isCollapsed &&
-                section.data.map((row, rowIdx) => {
-                    const id = getRowId(row);
-                    const isHighlighted = highlightedRowId === id;
-                    const isSelected = !!selection?.has(id);
-                    const hasSelection = !!selection && !!onSelectionChange;
-                    const isLastInSection = rowIdx === section.data.length - 1;
-                    const rowBackground = isSelected
-                        ? "var(--mantine-workbench-row-selected-bg, #f3e8fb)"
-                        : isHighlighted
-                          ? "var(--mantine-color-default-hover)"
-                          : undefined;
-                    const handleRowClick =
-                        onRowClick || hasSelection
-                            ? () => {
-                                  if (hasSelection) {
-                                      onSelectionChange!(new Set([id]));
-                                  }
-                                  if (onRowClick) {
-                                      onRowClick(row);
-                                  }
-                              }
-                            : undefined;
-                    return (
-                        <Table.Tr
-                            key={id}
-                            data-selected={isSelected || isHighlighted}
-                            onClick={handleRowClick}
-                            style={{
-                                cursor: handleRowClick ? "pointer" : undefined,
-                                background: rowBackground,
-                                // Letzte Row jeder Section: keine untere
-                                // Zeilenlinie. Mantine `withRowBorders`
-                                // setzt die Border direkt auf der Tr,
-                                // deshalb muss der Override hier sitzen
-                                // (nicht auf der Td).
-                                ...(isLastInSection ? { borderBottom: "none" } : {}),
-                            }}
-                        >
-                            {columns.map((col) => (
-                                <BodyCell key={col.id} col={col} row={row} />
-                            ))}
-                        </Table.Tr>
-                    );
-                })}
-        </>
-    );
-}
-
-// ─── Cells ──────────────────────────────────────────────────────────
-
-function HeaderCell<T>({
-    col,
-    sort,
-    onSortChange,
-}: {
-    col: Column<T>;
-    sort?: SortState;
-    onSortChange?: (next: SortState) => void;
-}) {
-    const isTight =
-        col.tight ?? (typeof col.width === "number" && col.width <= TIGHT_WIDTH_THRESHOLD);
-    const baseStyle: CSSProperties = {
-        backgroundColor: "var(--mantine-workbench-grid-header-bg, var(--mantine-color-gray-0))",
-        textTransform: "uppercase",
-        letterSpacing: "0.04em",
-        fontSize: 11,
-        fontWeight: 600,
-        color: "var(--mantine-workbench-grid-header-color, var(--mantine-color-gray-7))",
-        padding: "6px 16px",
-    };
-    const widthStyle = applyWidthStyle(baseStyle, col, isTight);
-    const sortable = col.sortable === true && onSortChange !== undefined;
-    const activeDir = sort?.sortBy === col.id ? sort.sortDir : false;
-
-    return (
-        <Table.Th style={widthStyle} aria-label={col.ariaLabel}>
-            {sortable ? (
-                <UnstyledButton
-                    onClick={() => {
-                        if (!sort || !onSortChange) {
-                            return;
-                        }
-                        onSortChange(nextSortForClick(sort, col.id));
-                    }}
-                    style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 4,
-                        cursor: "pointer",
-                        font: "inherit",
-                        color: "inherit",
-                        textTransform: "inherit",
-                        letterSpacing: "inherit",
-                    }}
-                >
-                    {col.header}
-                    <SortIcon dir={activeDir} />
-                </UnstyledButton>
-            ) : (
-                col.header
-            )}
-        </Table.Th>
-    );
-}
-
-function BodyCell<T>({ col, row }: { col: Column<T>; row: T }) {
-    const isTight =
-        col.tight ?? (typeof col.width === "number" && col.width <= TIGHT_WIDTH_THRESHOLD);
-    const widthStyle = applyWidthStyle({}, col, isTight);
-    return <Table.Td style={widthStyle}>{col.cell(row)}</Table.Td>;
-}
-
-function applyWidthStyle<T>(base: CSSProperties, col: Column<T>, isTight: boolean): CSSProperties {
-    // Case A: no fixed `width`, but a `minWidth` is set — the column
-    // grows with the remaining space but can never drop below `minWidth`.
-    // Works ONLY with `table-layout: auto` — with `fixed` the browser
-    // ignores `min-width` on cells. `PlainView`/`VirtualizedView`
-    // detect flex columns and switch the table layout accordingly.
-    if (typeof col.width !== "number") {
-        if (typeof col.minWidth === "number") {
-            return { ...base, minWidth: col.minWidth };
-        }
-        return base;
-    }
-    // Case B: fixed `width` — everything fixed (default behavior).
-    if (isTight) {
-        return {
-            ...base,
-            width: col.width,
-            minWidth: col.width,
-            maxWidth: col.width,
-            padding: 0,
-            textAlign: "center",
-        };
-    }
-    return {
-        ...base,
-        width: col.width,
-        minWidth: col.width,
-        maxWidth: col.width,
-    };
-}
-
-function FooterPager({
-    total,
-    shown,
-    columnCount,
-}: {
-    total: number;
-    shown: number;
-    columnCount: number;
-}) {
-    return (
-        <Table.Tfoot>
-            <Table.Tr>
-                <Table.Td colSpan={columnCount}>
-                    <Text size="xs" c="dimmed" ta="right">
-                        {shown} / {total}
-                    </Text>
-                </Table.Td>
-            </Table.Tr>
-        </Table.Tfoot>
-    );
-}
-
-function SortIcon({ dir }: { dir: "asc" | "desc" | false }) {
-    const size = 12;
-    if (dir === "asc") {
-        return <ChevronUp size={size} />;
-    }
-    if (dir === "desc") {
-        return <ChevronDown size={size} />;
-    }
-    return <ChevronsUpDown size={size} opacity={0.4} />;
-}
-
-// ─── Selection-Column builder ───────────────────────────────────────
-
-function makeSelectionColumn<T>(
-    data: T[],
-    selection: RowSelection,
-    onSelectionChange: (next: RowSelection) => void,
-    getRowId: (row: T) => string,
-): Column<T> {
-    return {
-        id: "__select",
-        width: 40,
-        tight: true,
-        header: (
-            <SelectAllCheckbox
-                data={data}
-                selection={selection}
-                onSelectionChange={onSelectionChange}
-                getRowId={getRowId}
-            />
-        ),
-        cell: (row) => {
-            const id = getRowId(row);
-            const checked = selection.has(id);
-            return (
-                <Group justify="center" gap={0} style={{ width: "100%" }}>
-                    <Checkbox
-                        size="xs"
-                        checked={checked}
-                        onChange={(e) => {
-                            e.stopPropagation();
-                            const next = new Set(selection);
-                            if (checked) {
-                                next.delete(id);
-                            } else {
-                                next.add(id);
-                            }
-                            onSelectionChange(next);
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                        aria-label="Toggle row"
-                    />
+                        )}
+                        {props.sortControl !== false &&
+                            props.onSortChange &&
+                            columns.some((column) => column.sortable) && (
+                                <Select
+                                    aria-label={labels.sort}
+                                    placeholder={labels.sort}
+                                    allowDeselect={false}
+                                    value={
+                                        props.sort?.sortBy
+                                            ? `${props.sort.sortBy}:${props.sort.sortDir}`
+                                            : null
+                                    }
+                                    data={columns
+                                        .filter((column) => column.sortable)
+                                        .flatMap((column) =>
+                                            ["asc", "desc"].map((dir) => ({
+                                                value: `${column.id}:${dir}`,
+                                                label: `${column.ariaLabel ?? (typeof column.header === "string" ? column.header : column.id)} · ${dir === "asc" ? labels.ascending : labels.descending}`,
+                                            })),
+                                        )}
+                                    onChange={(value) => {
+                                        if (value) {
+                                            const index = value.lastIndexOf(":");
+                                            props.onSortChange!({
+                                                sortBy: value.slice(0, index),
+                                                sortDir: value.slice(index + 1) as "asc" | "desc",
+                                            });
+                                        }
+                                    }}
+                                />
+                            )}
+                        {layout === "grid" && (
+                            <GridColumnsControl
+                                columns={columns}
+                                state={state}
+                                onChange={update}
+                                labels={labels}
+                            />
+                        )}
+                        {layouts.length > 1 && (
+                            <Group gap="xs" role="group" aria-label={labels.grid}>
+                                {layouts.map((value: GridLayout) => (
+                                    <Button
+                                        key={value}
+                                        variant={layout === value ? "filled" : "default"}
+                                        aria-pressed={layout === value}
+                                        onClick={() => update({ ...state, layout: value })}
+                                    >
+                                        {labels[value]}
+                                    </Button>
+                                ))}
+                            </Group>
+                        )}
+                    </Group>
                 </Group>
-            );
-        },
-    };
-}
-
-function SelectAllCheckbox<T>({
-    data,
-    selection,
-    onSelectionChange,
-    getRowId,
-}: {
-    data: T[];
-    selection: RowSelection;
-    onSelectionChange: (next: RowSelection) => void;
-    getRowId: (row: T) => string;
-}) {
-    const allSelected = data.length > 0 && data.every((r) => selection.has(getRowId(r)));
-    const someSelected = !allSelected && data.some((r) => selection.has(getRowId(r)));
-    return (
-        <Group justify="center" gap={0} style={{ width: "100%" }}>
-            <Checkbox
-                size="xs"
-                checked={allSelected}
-                indeterminate={someSelected}
-                onChange={() => {
-                    const next = new Set(selection);
-                    if (allSelected) {
-                        data.forEach((r) => next.delete(getRowId(r)));
-                    } else {
-                        data.forEach((r) => next.add(getRowId(r)));
-                    }
-                    onSelectionChange(next);
-                }}
-                aria-label="Toggle all rows"
-            />
-        </Group>
-    );
-}
-
-// ─── Skeleton (initial-load placeholder) ────────────────────────────
-
-function SkeletonTable<T>({
-    columns,
-    rowCount,
-    stickyHeader,
-    hideHeader,
-}: {
-    columns: Column<T>[];
-    rowCount: number;
-    stickyHeader: boolean;
-    hideHeader: boolean;
-}) {
-    const widthFor = (rowIdx: number, colIdx: number, hasWidth: boolean) => {
-        if (!hasWidth) {
-            const variants = ["88%", "72%", "94%", "64%", "80%"];
-            return variants[(rowIdx + colIdx) % variants.length];
-        }
-        const variants = ["70%", "55%", "85%", "60%"];
-        return variants[(rowIdx + colIdx) % variants.length];
-    };
-    return (
-        <Table
-            verticalSpacing={6}
-            horizontalSpacing="md"
-            withRowBorders
-            stickyHeader={stickyHeader}
-            layout="fixed"
-        >
-            {!hideHeader && (
-                <Table.Thead>
-                    <Table.Tr>
-                        {columns.map((col) => (
-                            <HeaderCell key={col.id} col={col} />
-                        ))}
-                    </Table.Tr>
-                </Table.Thead>
             )}
-            <Table.Tbody>
-                {Array.from({ length: rowCount }).map((_, rowIdx) => (
-                    <Table.Tr key={`skeleton-${rowIdx}`}>
-                        {columns.map((col, colIdx) => {
-                            const isTight =
-                                col.tight ??
-                                (typeof col.width === "number" &&
-                                    col.width <= TIGHT_WIDTH_THRESHOLD);
-                            const widthStyle = applyWidthStyle({}, col, isTight);
-                            const hasWidth = typeof col.width === "number";
-                            return (
-                                <Table.Td key={col.id} style={widthStyle}>
-                                    {isTight ? (
-                                        <Group justify="center" gap={0} style={{ width: "100%" }}>
-                                            <Skeleton height={14} width={14} radius="sm" />
-                                        </Group>
-                                    ) : (
-                                        <Skeleton
-                                            height={12}
-                                            width={widthFor(rowIdx, colIdx, hasWidth)}
-                                            radius="sm"
-                                        />
-                                    )}
-                                </Table.Td>
-                            );
-                        })}
-                    </Table.Tr>
-                ))}
-            </Table.Tbody>
-        </Table>
+            {(props.error || actionError) && (
+                <Alert color="red" title={labels.error}>
+                    {props.error ?? actionError}
+                </Alert>
+            )}
+            {partial && (
+                <Text px="sm" c="dimmed" role="status">
+                    {rows.length} / {total} {labels.loaded}
+                </Text>
+            )}
+            {content}
+        </Stack>
     );
 }

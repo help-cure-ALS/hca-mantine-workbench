@@ -20,7 +20,9 @@ for shared use across the TENOS/HCA ecosystem, usable by anyone.
 - **`data-grid`** — `DataGrid` with optional virtualization (own ~80
   LoC virtualizer, no TanStack), `Column<T>`, `useGridSort`,
   `useRowSelection`, `FilterPanel`, `DataGridLayout` (three-slot
-  resizable layout shell).
+  resizable layout shell). Since v0.3.0: configurable list/cards/Kanban,
+  shared card template, column preferences, shared toolbar and saved-view UI.
+  See [the DataGrid API and migration guide](docs/data-grid.md).
 - **`components`** — `ConfirmDialog` + `useConfirm`
   (+ `useOptionalConfirm` for components that ask only sometimes),
   `FormDrawer`, `DialogCloseButton`, `PageHeader`, `ExpandableText`,

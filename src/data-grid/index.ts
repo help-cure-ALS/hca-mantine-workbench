@@ -1,32 +1,16 @@
-/**
- * DataGrid module public API.
- *
- * Import paths:
- *   - `import { DataGrid, FilterPanel, DataGridLayout,
- *      useGridSort, useRowSelection, type Column }
- *      from "@hca/mantine-workbench"`
- *   - or more fine-grained: `from "@hca/mantine-workbench/data-grid"`
- *
- * Deliberately not part of the public API (internal only):
- *   - `useVirtualRows` — only used by DataGrid itself
- *
- * Deliberately not in the library (project-specific):
- *   - SavedViews / pinned-views UI — the backend contract and the
- *     persistence are project-owned. Consumers render their own
- *     component in `FilterPanel.topSlot`.
- */
+/** Shared, router-independent data presentation. Storage and data access are adapters. */
 
 // Core grid
 export { DataGrid } from "./DataGrid";
-export type { Column, SortState, RowSelection, DataGridProps, DataGridSection } from "./types";
+export type { Column, DataGridProps, DataGridSection, RowSelection, SortState } from "./types";
 
 // Sort + selection hooks
-export { useGridSort, nextSortForClick } from "./useGridSort";
+export { nextSortForClick, useGridSort } from "./useGridSort";
 export type {
-    UseGridSortServerOptions,
-    UseGridSortClientOptions,
-    GridSortResultServer,
     GridSortResultClient,
+    GridSortResultServer,
+    UseGridSortClientOptions,
+    UseGridSortServerOptions,
 } from "./useGridSort";
 export { useRowSelection } from "./useRowSelection";
 export type { UseRowSelectionResult } from "./useRowSelection";
@@ -34,9 +18,9 @@ export type { UseRowSelectionResult } from "./useRowSelection";
 // Filter panel
 export { FilterPanel } from "./FilterPanel";
 export type {
+    FilterPanelItem,
     FilterPanelProps,
     FilterPanelSection,
-    FilterPanelItem,
     FilterSelection,
 } from "./FilterPanel";
 
@@ -46,4 +30,22 @@ export type { DataGridLayoutProps } from "./DataGridLayout";
 
 // Grouped rows as columns — the board next to grid and cards
 export { Board } from "./Board";
-export type { BoardProps, BoardColumn } from "./Board";
+export type { BoardColumn, BoardProps } from "./Board";
+
+export {
+    GRID_STATE_PARAM,
+    defaultGridPresentation,
+    gridSelectionScope,
+    gridViewUrlParams,
+    readGridPresentation,
+    writeGridPresentation,
+} from "./grid-state";
+export type { GridLayout, GridPresentation } from "./grid-state";
+export { GridCard } from "./GridCard";
+export type { GridCardContent, GridCardProps } from "./GridCard";
+export { GridProvider, gridEnglish, gridGerman, useGridContext } from "./GridProvider";
+export type { GridLabels, GridStateAdapter } from "./GridProvider";
+export { GridToolbar } from "./GridToolbar";
+export type { GridToolbarChoice, GridToolbarProps } from "./GridToolbar";
+export { SavedViews, savedViewsEnglish, savedViewsGerman } from "./SavedViews";
+export type { SavedViewSummary, SavedViewsProps } from "./SavedViews";

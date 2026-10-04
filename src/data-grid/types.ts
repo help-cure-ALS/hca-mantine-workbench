@@ -8,6 +8,9 @@
  */
 
 import type { ReactNode } from "react";
+import type { GridCardContent } from "./GridCard";
+import type { GridLabels, GridStateAdapter } from "./GridProvider";
+import type { GridLayout, GridPresentation } from "./grid-state";
 
 /**
  * Column definition. One per table column. `cell` receives the whole
@@ -43,6 +46,15 @@ export interface Column<T> {
     /** ARIA label for the header — fallback when `header` has no plain
      *  text representation. */
     ariaLabel?: string;
+    hidden?: boolean;
+    hideable?: boolean;
+    reorderable?: boolean;
+    resizable?: boolean;
+    maxWidth?: number;
+    /** Controls the common card template when no getCard mapping is supplied. */
+    cardRole?: "title" | "subtitle" | "metadata" | "badge" | "actions" | "hidden";
+    /** Internal resize binding supplied by DataGrid. */
+    onResize?: (width: number, commit: boolean) => void;
 }
 
 /**
@@ -83,6 +95,8 @@ export interface DataGridSection<T> {
      *  is currently uncontrolled — the grid keeps its own set of
      *  collapsed section keys. */
     defaultCollapsed?: boolean;
+    /** Server count, when the loaded rows are only part of the group. */
+    total?: number;
 }
 
 /**
@@ -90,6 +104,37 @@ export interface DataGridSection<T> {
  * and IDE hover.
  */
 export interface DataGridProps<T> {
+    /** Omit a layout here to hide it; all three are available by default. */
+    layouts?: readonly GridLayout[];
+    stateAdapter?: GridStateAdapter;
+    labels?: Partial<GridLabels>;
+    presentation?: GridPresentation;
+    onPresentationChange?: (value: GridPresentation) => void;
+    getCard?: (row: T) => GridCardContent;
+    /** Disable selection explicitly for a read-only presentation. */
+    selectable?: boolean;
+    isRowSelectable?: (row: T) => boolean;
+    /** A complete query-bound ID set, supplied by the authorized data source. */
+    getAllMatchingIds?: () => Promise<string[]>;
+    selectionContextKey?: string;
+    toolbar?: ReactNode;
+    error?: ReactNode;
+    /** Set false for an embedded table whose parent provides the controls. */
+    controls?: boolean;
+    /** Hide the sort picker when GridToolbar already supplies one. */
+    sortControl?: boolean;
+    /** Group the loaded rows locally. Server groups use `sections` instead. */
+    grouping?: {
+        options: Array<{ value: string; label: string }>;
+        getKey: (row: T, field: string) => string | null;
+        getLabel?: (key: string, field: string) => string;
+    };
+    board?: {
+        columns: Array<{ key: string; label: string; total?: number }>;
+        getColumn: (row: T) => string | null;
+        canMove?: (row: T, target: string) => boolean;
+        onMove?: (row: T, target: string) => Promise<void>;
+    };
     /** Column definitions. */
     columns: Column<T>[];
     /** Current page of rows. In server mode = the page slice from the
@@ -114,7 +159,7 @@ export interface DataGridProps<T> {
     onSortChange?: (next: SortState) => void;
 
     // ─── Selection ────────────────────────────────────────────
-    /** Controlled selection. If omitted, no checkbox column. */
+    /** Controlled selection. If omitted, DataGrid owns the selection locally. */
     selection?: RowSelection;
     onSelectionChange?: (next: RowSelection) => void;
 

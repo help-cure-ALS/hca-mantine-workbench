@@ -19,7 +19,9 @@
  * content + detail" pattern.
  */
 
-import type { ReactNode } from "react";
+import { Box, Drawer, Stack } from "@mantine/core";
+import { useMediaQuery } from "@mantine/hooks";
+import { useEffect, useImperativeHandle, useRef, useState, type ReactNode } from "react";
 import {
     ResizableGroup,
     ResizableHandle,
@@ -27,8 +29,16 @@ import {
     usePanelRef,
     type ResizablePanelRef,
 } from "../layout/Resizable";
+import {
+    GridProvider,
+    useGridContext,
+    type GridLabels,
+    type GridStateAdapter,
+} from "./GridProvider";
 
 export interface DataGridLayoutProps {
+    stateAdapter?: GridStateAdapter;
+    labels?: Partial<GridLabels>;
     /** Unique key per page — controls the localStorage slot for width
      *  persistence. */
     pageKey: string;
@@ -61,6 +71,8 @@ export interface DataGridLayoutProps {
 }
 
 export function DataGridLayout({
+    stateAdapter,
+    labels,
     pageKey,
     filterPanel,
     mainContent,
@@ -75,86 +87,145 @@ export function DataGridLayout({
     contextMaxSize = "560px",
     mainMinSize = "400px",
 }: DataGridLayoutProps) {
+    const inheritedLabels = useGridContext().labels;
+    const mobileLabels = { ...inheritedLabels, ...labels };
     const internalFilterRef = usePanelRef();
     const filterRef = filterPanelRef ?? internalFilterRef;
     const contextRef = usePanelRef();
+    const desktopFilterRef = usePanelRef();
+    const narrow = useMediaQuery("(max-width: 48em)");
+    const [mobileOpen, setMobileOpen] = useState(false);
+    const mobileOpenRef = useRef(false);
+    const openMobile = (open: boolean) => {
+        if (mobileOpenRef.current === open) return;
+        mobileOpenRef.current = open;
+        setMobileOpen(open);
+        onFilterCollapsedChange?.(!open);
+    };
+    useEffect(() => {
+        if (narrow) {
+            mobileOpenRef.current = false;
+            setMobileOpen(false);
+            onFilterCollapsedChange?.(true);
+        }
+        // A breakpoint change starts with closed filters; subsequent toggles use the ref.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [narrow]);
+    // Preserve the panel toggle API when filters become a mobile drawer.
+    useImperativeHandle(filterRef, () => ({
+        collapse: () => (narrow ? openMobile(false) : desktopFilterRef.current?.collapse()),
+        expand: () => (narrow ? openMobile(true) : desktopFilterRef.current?.expand()),
+        isCollapsed: () =>
+            narrow ? !mobileOpenRef.current : (desktopFilterRef.current?.isCollapsed() ?? true),
+        getSize: () =>
+            narrow
+                ? {
+                      asPercentage: mobileOpenRef.current ? 100 : 0,
+                      inPixels: mobileOpenRef.current ? window.innerWidth : 0,
+                  }
+                : (desktopFilterRef.current?.getSize() ?? { asPercentage: 0, inPixels: 0 }),
+        resize: (size) => {
+            if (!narrow) desktopFilterRef.current?.resize(size);
+        },
+    }));
 
-    return (
-        <ResizableGroup
-            autoSaveId={`datagrid-${pageKey}-v2`}
-            orientation="horizontal"
-            style={{ flex: 1, minHeight: 0, height: "100%" }}
-        >
-            <ResizablePanel
-                panelRef={filterRef}
-                id={`${pageKey}-filter`}
-                collapsible
-                collapsedSize="0px"
-                defaultSize={filterDefaultSize}
-                minSize={filterMinSize}
-                maxSize={filterMaxSize}
-                groupResizeBehavior="preserve-pixel-size"
-                // v4 has no separate onCollapse/onExpand callbacks; we derive
-                // collapsed-state from the size. Threshold <1% is safer than
-                // ===0 because v4 passes sub-pixel values through during drag.
-                // Only fires on actual flips so the parent doesn't re-render
-                // every resize frame.
-                onResize={
-                    onFilterCollapsedChange
-                        ? (size, _id, prev) => {
-                              const isNowCollapsed = size.asPercentage < 1;
-                              const wasCollapsed = prev ? prev.asPercentage < 1 : false;
-                              if (isNowCollapsed !== wasCollapsed) {
-                                  onFilterCollapsedChange(isNowCollapsed);
-                              }
-                          }
-                        : undefined
-                }
-            >
-                {/* Right border separates the filter panel visually from the
-            main content. Border lives on the content (not the
-            Resizable container) so the line moves cleanly during drag. */}
-                <div
-                    style={{
-                        height: "100%",
-                        borderRight: "1px solid var(--mantine-color-default-border)",
-                    }}
+    if (narrow)
+        return (
+            <GridProvider stateAdapter={stateAdapter} labels={labels}>
+                <Stack gap={0} style={{ flex: 1, minHeight: 0, minWidth: 0, height: "100%" }}>
+                    <Box style={{ flex: 1, minHeight: 0, minWidth: 0 }}>{mainContent}</Box>
+                    {contextPanel}
+                </Stack>
+                <Drawer
+                    opened={mobileOpen}
+                    onClose={() => openMobile(false)}
+                    title={mobileLabels.filters}
+                    size="min(360px, 100%)"
+                    closeButtonProps={{ "aria-label": mobileLabels.close }}
                 >
                     {filterPanel}
-                </div>
-            </ResizablePanel>
-            {/* Cursor-tracking button intentionally off — the FilterPanel
+                </Drawer>
+            </GridProvider>
+        );
+
+    return (
+        <GridProvider stateAdapter={stateAdapter} labels={labels}>
+            <ResizableGroup
+                autoSaveId={`datagrid-${pageKey}-v2`}
+                orientation="horizontal"
+                style={{ flex: 1, minHeight: 0, height: "100%" }}
+            >
+                <ResizablePanel
+                    panelRef={desktopFilterRef}
+                    id={`${pageKey}-filter`}
+                    collapsible
+                    collapsedSize="0px"
+                    defaultSize={filterDefaultSize}
+                    minSize={filterMinSize}
+                    maxSize={filterMaxSize}
+                    groupResizeBehavior="preserve-pixel-size"
+                    // v4 has no separate onCollapse/onExpand callbacks; we derive
+                    // collapsed-state from the size. Threshold <1% is safer than
+                    // ===0 because v4 passes sub-pixel values through during drag.
+                    // Only fires on actual flips so the parent doesn't re-render
+                    // every resize frame.
+                    onResize={
+                        onFilterCollapsedChange
+                            ? (size, _id, prev) => {
+                                  const isNowCollapsed = size.asPercentage < 1;
+                                  const wasCollapsed = prev ? prev.asPercentage < 1 : false;
+                                  if (isNowCollapsed !== wasCollapsed) {
+                                      onFilterCollapsedChange(isNowCollapsed);
+                                  }
+                              }
+                            : undefined
+                    }
+                >
+                    {/* Right border separates the filter panel visually from the
+            main content. Border lives on the content (not the
+            Resizable container) so the line moves cleanly during drag. */}
+                    <div
+                        style={{
+                            height: "100%",
+                            borderRight: "1px solid var(--mantine-color-default-border)",
+                        }}
+                    >
+                        {filterPanel}
+                    </div>
+                </ResizablePanel>
+                {/* Cursor-tracking button intentionally off — the FilterPanel
           typically surfaces its own collapse toggle (next to the
           search input or a Reset pill); two controls at the same
           gesture point would compete. */}
-            <ResizableHandle controls={filterRef} side="left" showButton={false} />
-            <ResizablePanel id={`${pageKey}-main`} defaultSize="auto" minSize={mainMinSize}>
-                {mainContent}
-            </ResizablePanel>
-            {contextPanel && (
-                <>
-                    <ResizableHandle controls={contextRef} side="right" />
-                    <ResizablePanel
-                        panelRef={contextRef}
-                        id={`${pageKey}-context`}
-                        collapsible
-                        collapsedSize="0px"
-                        defaultSize={contextDefaultSize}
-                        minSize={contextMinSize}
-                        maxSize={contextMaxSize}
-                        groupResizeBehavior="preserve-pixel-size"
-                    >
-                        <div
-                            style={{
-                                height: "100%",
-                                borderLeft: "1px solid var(--mantine-color-default-border)",
-                            }}
+                <ResizableHandle controls={filterRef} side="left" showButton={false} />
+                <ResizablePanel id={`${pageKey}-main`} defaultSize="auto" minSize={mainMinSize}>
+                    {mainContent}
+                </ResizablePanel>
+                {contextPanel && (
+                    <>
+                        <ResizableHandle controls={contextRef} side="right" />
+                        <ResizablePanel
+                            panelRef={contextRef}
+                            id={`${pageKey}-context`}
+                            collapsible
+                            collapsedSize="0px"
+                            defaultSize={contextDefaultSize}
+                            minSize={contextMinSize}
+                            maxSize={contextMaxSize}
+                            groupResizeBehavior="preserve-pixel-size"
                         >
-                            {contextPanel}
-                        </div>
-                    </ResizablePanel>
-                </>
-            )}
-        </ResizableGroup>
+                            <div
+                                style={{
+                                    height: "100%",
+                                    borderLeft: "1px solid var(--mantine-color-default-border)",
+                                }}
+                            >
+                                {contextPanel}
+                            </div>
+                        </ResizablePanel>
+                    </>
+                )}
+            </ResizableGroup>
+        </GridProvider>
     );
 }
