@@ -17,7 +17,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
             {/* FormDrawer's discard question needs this; without it the
                 drawer closes silently and the demo proves nothing. */}
             <ConfirmDialogProvider>
-                {new URLSearchParams(location.search).has("grid-test") ? <GridDemo /> : <App />}
+                {(new URLSearchParams(location.search).has("grid-test") || new URLSearchParams(location.search).has("grid-demo")) ? <GridDemo /> : <App />}
             </ConfirmDialogProvider>
         </MantineProvider>
     </React.StrictMode>,

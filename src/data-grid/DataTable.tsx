@@ -38,17 +38,19 @@ import {
     Text,
     UnstyledButton,
 } from "@mantine/core";
-import { ChevronDown, ChevronRight, ChevronUp, ChevronsUpDown } from "lucide-react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import type { Column, DataGridProps, DataGridSection, RowSelection, SortState } from "./types";
 import { useGridContext } from "./GridProvider";
-import { clampColumnWidth } from "./grid-state";
-import { nextSortForClick } from "./useGridSort";
+import { GridHeaderCell as HeaderCell } from "./GridHeaderCell";
 import { useVirtualRows } from "./useVirtualRows";
+import { getTitleColumn } from "./title-column";
+import classes from "./GridControls.module.css";
 
 const TIGHT_WIDTH_THRESHOLD = 48;
 
 export function DataTable<T>({
     columns,
+    titleColumnId,
     data,
     sections,
     getRowId,
@@ -80,8 +82,24 @@ export function DataTable<T>({
     // selection (without click handling), build a custom column and
     // inject the selection set yourself.
     const columnsWithSelect: Column<T>[] = useMemo(() => {
+        const titleColumn = getTitleColumn(columns, titleColumnId);
+        const displayColumns = columns.map((column) =>
+            column === titleColumn
+                ? {
+                      ...column,
+                      cell: (row: T) => {
+                          const content = column.cell(row);
+                          return typeof content === "string" || typeof content === "number" ? (
+                              <span data-grid-title>{content}</span>
+                          ) : (
+                              content
+                          );
+                      },
+                  }
+                : column,
+        );
         if (!selection || !onSelectionChange) {
-            return columns;
+            return displayColumns;
         }
         return [
             makeSelectionColumn<T>(
@@ -93,10 +111,11 @@ export function DataTable<T>({
                 labels.selectPage,
                 isRowSelectable,
             ),
-            ...columns,
+            ...displayColumns,
         ];
     }, [
         columns,
+        titleColumnId,
         selection,
         onSelectionChange,
         effectiveData,
@@ -250,20 +269,24 @@ function PlainView<T>({
     // If even one column with `minWidth` (without `width`) exists,
     // we switch to `auto` — there the browser respects min-width,
     // and columns with an explicit `width` still stay fixed.
-    const hasFlexColumn = columns.some((c) => c.minWidth != null && c.width == null);
+    const hasFlexColumn = columns.some((c) => c.width == null);
     const tableLayout = hasFlexColumn ? "auto" : "fixed";
     return (
         <Table
+            className={classes.table}
             highlightOnHover
             verticalSpacing={6}
-            horizontalSpacing="md"
+            horizontalSpacing={10}
             withRowBorders
             stickyHeader={stickyHeader}
             layout={tableLayout}
+            style={{
+                width: hasFlexColumn ? "100%" : columns.reduce((sum, c) => sum + (c.width ?? 0), 0),
+            }}
         >
             {!hideHeader && (
                 <Table.Thead>
-                    <Table.Tr>
+                    <Table.Tr data-column-scope>
                         {columns.map((col) => (
                             <HeaderCell
                                 key={col.id}
@@ -352,21 +375,27 @@ function VirtualizedView<T>({
 
     // See PlainView: `min-width` on cells only takes effect with
     // `table-layout: auto`. Detection is identical.
-    const hasFlexColumn = columns.some((c) => c.minWidth != null && c.width == null);
+    const hasFlexColumn = columns.some((c) => c.width == null);
     const tableLayout = hasFlexColumn ? "auto" : "fixed";
     return (
         <Box ref={containerRef} style={{ height: "100%", overflow: "auto", position: "relative" }}>
             <Table
+                className={classes.table}
                 highlightOnHover
-                verticalSpacing={0}
-                horizontalSpacing="md"
+                verticalSpacing={6}
+                horizontalSpacing={10}
                 withRowBorders
                 stickyHeader={stickyHeader}
-                style={{ tableLayout }}
+                style={{
+                    tableLayout,
+                    width: hasFlexColumn
+                        ? "100%"
+                        : columns.reduce((sum, c) => sum + (c.width ?? 0), 0),
+                }}
             >
                 {!hideHeader && (
                     <Table.Thead>
-                        <Table.Tr>
+                        <Table.Tr data-column-scope>
                             {columns.map((col) => (
                                 <HeaderCell
                                     key={col.id}
@@ -491,20 +520,24 @@ function SectionedView<T>({
         });
     };
 
-    const hasFlexColumn = columns.some((c) => c.minWidth != null && c.width == null);
+    const hasFlexColumn = columns.some((c) => c.width == null);
     const tableLayout = hasFlexColumn ? "auto" : "fixed";
     return (
         <Table
+            className={classes.table}
             highlightOnHover
             verticalSpacing={6}
-            horizontalSpacing="md"
+            horizontalSpacing={10}
             withRowBorders
             stickyHeader={stickyHeader}
             layout={tableLayout}
+            style={{
+                width: hasFlexColumn ? "100%" : columns.reduce((sum, c) => sum + (c.width ?? 0), 0),
+            }}
         >
             {!hideHeader && (
                 <Table.Thead>
-                    <Table.Tr>
+                    <Table.Tr data-column-scope>
                         {columns.map((col) => (
                             <HeaderCell
                                 key={col.id}
@@ -584,7 +617,7 @@ function SectionFragment<T>({
                         // Trennung zwischen einer vorherigen Gruppe und
                         // der neuen Section-Überschrift, ohne dass es
                         // dazwischen eine hart gezogene Linie braucht.
-                        padding: "20px 16px 8px",
+                        padding: "20px 10px 8px",
                         borderBottom: "1px solid var(--mantine-color-default-border)",
                         background: "transparent",
                     }}
@@ -659,138 +692,15 @@ function SectionFragment<T>({
 
 // ─── Cells ──────────────────────────────────────────────────────────
 
-function HeaderCell<T>({
-    col,
-    sort,
-    onSortChange,
-}: {
-    col: Column<T>;
-    sort?: SortState;
-    onSortChange?: (next: SortState) => void;
-}) {
-    const { labels } = useGridContext();
-    const drag = useRef<{ x: number; width: number; next: number } | null>(null);
-    const isTight =
-        col.tight ?? (typeof col.width === "number" && col.width <= TIGHT_WIDTH_THRESHOLD);
-    const baseStyle: CSSProperties = {
-        backgroundColor: "var(--mantine-workbench-grid-header-bg, var(--mantine-color-gray-0))",
-        textTransform: "uppercase",
-        letterSpacing: "0.04em",
-        fontSize: 11,
-        fontWeight: 600,
-        color: "var(--mantine-workbench-grid-header-color, var(--mantine-color-gray-7))",
-        padding: "6px 16px",
-    };
-    const widthStyle = applyWidthStyle(baseStyle, col, isTight);
-    const sortable = col.sortable === true && onSortChange !== undefined;
-    const activeDir = sort?.sortBy === col.id ? sort.sortDir : false;
-
-    return (
-        <Table.Th
-            style={{ ...widthStyle, position: "relative" }}
-            aria-label={col.ariaLabel}
-            aria-sort={
-                activeDir === "asc" ? "ascending" : activeDir === "desc" ? "descending" : undefined
-            }
-        >
-            {sortable ? (
-                <UnstyledButton
-                    onClick={() => {
-                        if (!sort || !onSortChange) {
-                            return;
-                        }
-                        onSortChange(nextSortForClick(sort, col.id));
-                    }}
-                    style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 4,
-                        cursor: "pointer",
-                        font: "inherit",
-                        color: "inherit",
-                        textTransform: "inherit",
-                        letterSpacing: "inherit",
-                    }}
-                >
-                    {col.header}
-                    <SortIcon dir={activeDir} />
-                </UnstyledButton>
-            ) : (
-                col.header
-            )}
-            {col.onResize && (
-                <span
-                    role="separator"
-                    aria-orientation="vertical"
-                    tabIndex={0}
-                    aria-label={`${labels.width}: ${col.ariaLabel ?? (typeof col.header === "string" ? col.header : col.id)}`}
-                    aria-valuemin={col.minWidth ?? 64}
-                    aria-valuemax={col.maxWidth ?? 1200}
-                    aria-valuenow={col.width ?? col.minWidth ?? 160}
-                    onClick={(event) => event.stopPropagation()}
-                    onKeyDown={(event) => {
-                        if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
-                            event.preventDefault();
-                            event.stopPropagation();
-                            col.onResize?.(
-                                clampColumnWidth(
-                                    col,
-                                    (col.width ?? col.minWidth ?? 160) +
-                                        (event.key === "ArrowLeft" ? -10 : 10),
-                                ),
-                                true,
-                            );
-                        }
-                    }}
-                    onPointerDown={(event) => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        const width =
-                            event.currentTarget.parentElement?.getBoundingClientRect().width ??
-                            col.width ??
-                            160;
-                        drag.current = { x: event.clientX, width, next: width };
-                        event.currentTarget.setPointerCapture(event.pointerId);
-                    }}
-                    onPointerMove={(event) => {
-                        if (!drag.current) return;
-                        drag.current.next = clampColumnWidth(
-                            col,
-                            drag.current.width + event.clientX - drag.current.x,
-                        );
-                        col.onResize?.(drag.current.next, false);
-                    }}
-                    onPointerUp={(event) => {
-                        if (!drag.current) return;
-                        col.onResize?.(drag.current.next, true);
-                        drag.current = null;
-                        event.currentTarget.releasePointerCapture(event.pointerId);
-                    }}
-                    onPointerCancel={() => {
-                        if (drag.current) col.onResize?.(drag.current.width, true);
-                        drag.current = null;
-                    }}
-                    style={{
-                        position: "absolute",
-                        right: 0,
-                        top: 0,
-                        height: "100%",
-                        width: 8,
-                        cursor: "col-resize",
-                        touchAction: "none",
-                        borderRight: "1px solid var(--mantine-color-default-border)",
-                    }}
-                />
-            )}
-        </Table.Th>
-    );
-}
-
 function BodyCell<T>({ col, row }: { col: Column<T>; row: T }) {
     const isTight =
         col.tight ?? (typeof col.width === "number" && col.width <= TIGHT_WIDTH_THRESHOLD);
     const widthStyle = applyWidthStyle({}, col, isTight);
-    return <Table.Td style={widthStyle}>{col.cell(row)}</Table.Td>;
+    return (
+        <Table.Td data-column-id={col.id} style={widthStyle}>
+            <div style={{ overflow: "hidden" }}>{col.cell(row)}</div>
+        </Table.Td>
+    );
 }
 
 function applyWidthStyle<T>(base: CSSProperties, col: Column<T>, isTight: boolean): CSSProperties {
@@ -835,7 +745,7 @@ function FooterPager({
 }) {
     return (
         <Table.Tfoot>
-            <Table.Tr>
+            <Table.Tr data-column-scope>
                 <Table.Td colSpan={columnCount}>
                     <Text size="xs" c="dimmed" ta="right">
                         {shown} / {total}
@@ -844,17 +754,6 @@ function FooterPager({
             </Table.Tr>
         </Table.Tfoot>
     );
-}
-
-function SortIcon({ dir }: { dir: "asc" | "desc" | false }) {
-    const size = 12;
-    if (dir === "asc") {
-        return <ChevronUp size={size} />;
-    }
-    if (dir === "desc") {
-        return <ChevronDown size={size} />;
-    }
-    return <ChevronsUpDown size={size} opacity={0.4} />;
 }
 
 // ─── Selection-Column builder ───────────────────────────────────────
@@ -968,15 +867,16 @@ function SkeletonTable<T>({
     };
     return (
         <Table
+            className={classes.table}
             verticalSpacing={6}
-            horizontalSpacing="md"
+            horizontalSpacing={10}
             withRowBorders
             stickyHeader={stickyHeader}
             layout="fixed"
         >
             {!hideHeader && (
                 <Table.Thead>
-                    <Table.Tr>
+                    <Table.Tr data-column-scope>
                         {columns.map((col) => (
                             <HeaderCell key={col.id} col={col} />
                         ))}

@@ -1,6 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Badge, Button, Group, Stack, Text } from "@mantine/core";
 import {
+    BulkActionBar,
+    BulkPill,
+    FilterPanel,
+    PageHeader,
     DataGrid,
     DataGridLayout,
     GridToolbar,
@@ -34,6 +38,7 @@ const columns: Column<Row>[] = [
 
 /** Executable regression fixture and integration example; no application API calls. */
 export function GridDemo() {
+    const testMode = useRef(new URLSearchParams(window.location.search).has("grid-test")).current;
     const [params, setParams] = useState(() => new URLSearchParams(window.location.search));
     const [rows, setRows] = useState(initial);
     const [selection, setSelection] = useState(new Set<string>());
@@ -47,7 +52,7 @@ export function GridDemo() {
     const filterPanelRef = usePanelRef();
     const [delaySelection, setDelaySelection] = useState(false);
     const setQuery = (next: URLSearchParams) => {
-        next.set("grid-test", "1");
+        next.set(testMode ? "grid-test" : "grid-demo", "1");
         history.pushState(null, "", "?" + next);
         setParams(new URLSearchParams(next));
     };
@@ -68,8 +73,11 @@ export function GridDemo() {
     };
     const filtered = useMemo(
         () =>
-            rows.filter((row) =>
-                row.name.toLowerCase().includes((params.get("q") ?? "").toLowerCase()),
+            rows.filter(
+                (row) =>
+                    row.name.toLowerCase().includes((params.get("q") ?? "").toLowerCase()) &&
+                    (!params.get("status") ||
+                        params.get("status")!.split(",").includes(row.status)),
             ),
         [rows, params],
     );
@@ -89,25 +97,33 @@ export function GridDemo() {
     );
     return (
         <Stack gap="sm" h="100vh">
-            <Group p="sm">
-                <Button
-                    onClick={() =>
-                        setIdentity((value) =>
-                            value === "user-a:org-a" ? "user-b:org-b" : "user-a:org-a",
-                        )
-                    }
-                >
-                    Kontext wechseln
-                </Button>
-                <Button onClick={() => setFailMove((value) => !value)}>
-                    Verschiebefehler umschalten
-                </Button>
-                <Button onClick={() => setDelaySelection((value) => !value)}>
-                    Auswahl verzögern
-                </Button>
-                <Text data-testid="opened">Geöffnet: {openCount}</Text>
-                <Text data-testid="selected">Auswahl: {[...selection].sort().join(",")}</Text>
-            </Group>
+            {!testMode && (
+                <PageHeader
+                    title="DataGrid"
+                    subtitle="Gemeinsame Toolbar, Spalten, Sichten und Sammelaktionen"
+                />
+            )}
+            {testMode && (
+                <Group p="sm">
+                    <Button
+                        onClick={() =>
+                            setIdentity((value) =>
+                                value === "user-a:org-a" ? "user-b:org-b" : "user-a:org-a",
+                            )
+                        }
+                    >
+                        Kontext wechseln
+                    </Button>
+                    <Button onClick={() => setFailMove((value) => !value)}>
+                        Verschiebefehler umschalten
+                    </Button>
+                    <Button onClick={() => setDelaySelection((value) => !value)}>
+                        Auswahl verzögern
+                    </Button>
+                    <Text data-testid="opened">Geöffnet: {openCount}</Text>
+                    <Text data-testid="selected">Auswahl: {[...selection].sort().join(",")}</Text>
+                </Group>
+            )}
             <DataGridLayout
                 pageKey="grid-demo"
                 stateAdapter={{ params, onChange: setQuery, contextKey: identity }}
@@ -115,55 +131,118 @@ export function GridDemo() {
                 filterPanelRef={filterPanelRef}
                 onFilterCollapsedChange={setFilterCollapsed}
                 filterPanel={
-                    <SavedViews
-                        views={views}
-                        activeViewId={params.get("view") ?? "default"}
-                        isVirtual={!params.has("view")}
-                        parentSavedView={null}
-                        labels={savedViewsGerman}
-                        onApply={(view) =>
-                            setQuery(new URLSearchParams(view.search_params + "&view=" + view.id))
+                    <FilterPanel
+                        title="Filter"
+                        resetLabel="Zurücksetzen"
+                        sections={[
+                            {
+                                key: "status",
+                                title: "Status",
+                                mode: "multi",
+                                items: [
+                                    {
+                                        key: "active",
+                                        label: "Aktiv",
+                                        count: rows.filter((row) => row.status === "active").length,
+                                    },
+                                    {
+                                        key: "draft",
+                                        label: "Entwurf",
+                                        count: rows.filter((row) => row.status === "draft").length,
+                                    },
+                                ],
+                            },
+                        ]}
+                        selection={
+                            new Map([
+                                [
+                                    "status",
+                                    new Set(
+                                        (params.get("status") ?? "").split(",").filter(Boolean),
+                                    ),
+                                ],
+                            ])
                         }
-                        onSave={async (name, options) => {
-                            const view = {
-                                id: crypto.randomUUID(),
-                                name,
-                                search_params: params.toString(),
-                                is_default: options?.is_default,
-                            };
-                            setViews((current) => [...current, view]);
-                        }}
-                        onUpdateView={async (view) =>
-                            setViews((current) =>
-                                current.map((item) =>
-                                    item.id === view.id
-                                        ? { ...item, search_params: params.toString() }
-                                        : item,
-                                ),
-                            )
+                        onChange={(selection) =>
+                            patch("status", [...(selection.get("status") ?? [])].join(","))
                         }
-                        onRename={async (view, name) =>
-                            setViews((current) =>
-                                current.map((item) =>
-                                    item.id === view.id ? { ...item, name } : item,
-                                ),
-                            )
-                        }
-                        onSetDefault={async (view) =>
-                            setViews((current) =>
-                                current.map((item) => ({
-                                    ...item,
-                                    is_default: item.id === view.id,
-                                })),
-                            )
-                        }
-                        onDelete={async (view) =>
-                            setViews((current) => current.filter((item) => item.id !== view.id))
+                        topSlot={
+                            <SavedViews
+                                views={views}
+                                activeViewId={params.get("view") ?? "default"}
+                                isVirtual={(() => {
+                                    const saved = views.find(
+                                        (view) => view.id === params.get("view"),
+                                    );
+                                    if (!saved) return true;
+                                    const current = new URLSearchParams(params);
+                                    current.delete("view");
+                                    const original = new URLSearchParams(saved.search_params);
+                                    original.delete("view");
+                                    current.sort();
+                                    original.sort();
+                                    return current.toString() !== original.toString();
+                                })()}
+                                parentSavedView={
+                                    views.find((view) => view.id === params.get("view")) ?? null
+                                }
+                                labels={savedViewsGerman}
+                                onApply={(view) =>
+                                    setQuery(
+                                        new URLSearchParams(
+                                            view.search_params + "&view=" + view.id,
+                                        ),
+                                    )
+                                }
+                                onSave={async (name, options) => {
+                                    const view = {
+                                        id: crypto.randomUUID(),
+                                        name,
+                                        search_params: params.toString(),
+                                        is_default: options?.is_default,
+                                    };
+                                    setViews((current) => [...current, view]);
+                                }}
+                                onUpdateView={async (view) =>
+                                    setViews((current) =>
+                                        current.map((item) =>
+                                            item.id === view.id
+                                                ? { ...item, search_params: params.toString() }
+                                                : item,
+                                        ),
+                                    )
+                                }
+                                onRename={async (view, name) =>
+                                    setViews((current) =>
+                                        current.map((item) =>
+                                            item.id === view.id ? { ...item, name } : item,
+                                        ),
+                                    )
+                                }
+                                onSetDefault={async (view) =>
+                                    setViews((current) =>
+                                        current.map((item) => ({
+                                            ...item,
+                                            is_default: item.id === view.id,
+                                        })),
+                                    )
+                                }
+                                onDelete={async (view) =>
+                                    setViews((current) =>
+                                        current.filter((item) => item.id !== view.id),
+                                    )
+                                }
+                            />
                         }
                     />
                 }
                 mainContent={
-                    <Stack gap={0} h="100%" style={{ overflow: "auto" }}>
+                    <Stack
+                        data-testid="grid-viewport"
+                        gap={0}
+                        h="100%"
+                        style={{ overflow: "auto" }}
+                    >
                         <GridToolbar
                             search={{
                                 value: params.get("q") ?? "",
@@ -172,6 +251,12 @@ export function GridDemo() {
                             }}
                             filters={{
                                 opened: !filterCollapsed,
+                                count: (params.get("status") ?? "").split(",").filter(Boolean)
+                                    .length,
+                                items: (params.get("status") ?? "")
+                                    .split(",")
+                                    .filter(Boolean)
+                                    .map((value) => (value === "active" ? "Aktiv" : "Entwurf")),
                                 onToggle: () => setFilterCollapsed((value) => !value),
                             }}
                             total={filtered.length}
@@ -224,6 +309,29 @@ export function GridDemo() {
                     </Stack>
                 }
             />
+            {selection.size > 0 && (
+                <BulkActionBar
+                    selectedLabel={`${selection.size} ausgewählt`}
+                    ariaLabel="Sammelaktionen"
+                    clearLabel="Auswahl aufheben"
+                    clearShortcutHint="(Esc)"
+                    onClear={() => setSelection(new Set())}
+                >
+                    <BulkPill
+                        variant="accent"
+                        onClick={() => {
+                            setRows((current) =>
+                                current.map((row) =>
+                                    selection.has(row.id) ? { ...row, status: "active" } : row,
+                                ),
+                            );
+                            setSelection(new Set());
+                        }}
+                    >
+                        Aktivieren
+                    </BulkPill>
+                </BulkActionBar>
+            )}
         </Stack>
     );
 }

@@ -46,19 +46,19 @@ const PILL_CSS = `
 .batch-pill:disabled { cursor: not-allowed; opacity: 0.5; }
 .batch-pill--icon {
   padding: 6px;
-  background: color-mix(in oklab, var(--background) 14%, transparent);
-  color: var(--background);
+  background: color-mix(in oklab, var(--background, var(--mantine-color-body)) 14%, transparent);
+  color: var(--background, var(--mantine-color-body));
 }
 .batch-pill--icon:hover:not(:disabled) {
-  background: color-mix(in oklab, var(--background) 26%, transparent);
+  background: color-mix(in oklab, var(--background, var(--mantine-color-body)) 26%, transparent);
 }
 .batch-pill--text {
   padding: 5px 12px;
-  background: color-mix(in oklab, var(--background) 14%, transparent);
-  color: var(--background);
+  background: color-mix(in oklab, var(--background, var(--mantine-color-body)) 14%, transparent);
+  color: var(--background, var(--mantine-color-body));
 }
 .batch-pill--text:hover:not(:disabled) {
-  background: color-mix(in oklab, var(--background) 26%, transparent);
+  background: color-mix(in oklab, var(--background, var(--mantine-color-body)) 26%, transparent);
 }
 .batch-pill--accent {
   padding: 5px 12px;
@@ -95,11 +95,11 @@ const PILL_CSS = `
 .batch-pill--ghost {
   padding: 5px 10px;
   background: transparent;
-  color: color-mix(in oklab, var(--background) 80%, transparent);
+  color: color-mix(in oklab, var(--background, var(--mantine-color-body)) 80%, transparent);
 }
 .batch-pill--ghost:hover:not(:disabled) {
-  background: color-mix(in oklab, var(--background) 14%, transparent);
-  color: var(--background);
+  background: color-mix(in oklab, var(--background, var(--mantine-color-body)) 14%, transparent);
+  color: var(--background, var(--mantine-color-body));
 }
 `;
 
@@ -154,7 +154,8 @@ export function BulkSeparator() {
                 marginInline: 4,
                 height: 16,
                 width: 1,
-                background: "color-mix(in oklab, var(--background) 30%, transparent)",
+                background:
+                    "color-mix(in oklab, var(--background, var(--mantine-color-body)) 30%, transparent)",
             }}
         />
     );
@@ -171,8 +172,7 @@ export interface BulkActionBarProps {
     /** Action pills — caller controls content and order via JSX. */
     children: ReactNode;
     /** If set, a `"Cancel"` ghost pill is appended on the right which
-     *  fires this handler. The caller should also bind Esc globally to
-     *  the same handler. */
+     *  fires this handler. Escape invokes the same handler unless a dialog or menu is open. */
     onClear?: () => void;
     /** Label for the clear pill. Default `"Cancel"`. */
     clearLabel?: string;
@@ -193,6 +193,23 @@ export function BulkActionBar({
     ariaLabel = "Bulk actions",
 }: BulkActionBarProps) {
     usePillStyles();
+    useEffect(() => {
+        if (!onClear) return;
+        const clearOnEscape = (event: KeyboardEvent) => {
+            if (event.key !== "Escape" || event.defaultPrevented) return;
+            if (
+                Array.from(
+                    document.querySelectorAll(
+                        '[role="dialog"], [role="menu"], .mantine-Popover-dropdown, [data-dragging], [data-grid-columns-open]',
+                    ),
+                ).some((element) => element.getClientRects().length)
+            )
+                return;
+            onClear();
+        };
+        window.addEventListener("keydown", clearOnEscape, true);
+        return () => window.removeEventListener("keydown", clearOnEscape, true);
+    }, [onClear]);
     return (
         <div
             style={{
@@ -204,19 +221,28 @@ export function BulkActionBar({
                 display: "flex",
                 alignItems: "center",
                 gap: 6,
-                borderRadius: 9999,
+                flexWrap: "wrap",
+                justifyContent: "center",
+                width: "max-content",
+                maxWidth: "calc(100vw - 24px)",
+                maxHeight: "40vh",
+                overflowY: "auto",
+                borderRadius: 24,
                 paddingInline: 16,
                 paddingBlock: 8,
                 fontSize: 13,
                 boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1)",
                 background: "var(--mantine-color-text)",
-                color: "var(--background)",
+                color: "var(--background, var(--mantine-color-body))",
                 border: "1px solid color-mix(in oklab, var(--mantine-color-text) 90%, white)",
             }}
             role="toolbar"
             aria-label={ariaLabel}
         >
-            <span style={{ fontWeight: 500, paddingInline: 4, userSelect: "none" }}>
+            <span
+                aria-live="polite"
+                style={{ fontWeight: 500, paddingInline: 4, userSelect: "none" }}
+            >
                 {selectedLabel}
             </span>
 
@@ -227,7 +253,7 @@ export function BulkActionBar({
                         style={{
                             paddingInline: 4,
                             userSelect: "none",
-                            color: "color-mix(in oklab, var(--background) 75%, transparent)",
+                            color: "color-mix(in oklab, var(--background, var(--mantine-color-body)) 75%, transparent)",
                         }}
                     >
                         {statusInfo}

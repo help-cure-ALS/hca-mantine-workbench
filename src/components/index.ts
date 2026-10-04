@@ -52,3 +52,5 @@ export type { BulkActionBarProps, BulkPillProps, BulkPillVariant } from "./BulkA
 
 export { CountrySelect } from "./CountrySelect";
 export type { CountrySelectProps } from "./CountrySelect";
+
+export { PageIcon, type PageIconProps } from "./PageIcon";

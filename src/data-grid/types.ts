@@ -55,6 +55,14 @@ export interface Column<T> {
     cardRole?: "title" | "subtitle" | "metadata" | "badge" | "actions" | "hidden";
     /** Internal resize binding supplied by DataGrid. */
     onResize?: (width: number, commit: boolean) => void;
+    onResizeCancel?: () => void;
+    /** Internal bindings supplied by DataGrid; consumers configure the flags above. */
+    onReorder?: (targetId: string) => void;
+    onMoveStep?: (delta: number) => void;
+    onHide?: () => void;
+    onManageColumns?: () => void;
+    onFit?: () => void;
+    onFitAll?: () => void;
 }
 
 /**
@@ -137,6 +145,9 @@ export interface DataGridProps<T> {
     };
     /** Column definitions. */
     columns: Column<T>[];
+    /** Primary title column. Defaults to cardRole="title", a conventional title/name ID,
+     *  or the first non-tight data column. Stable when columns are reordered or hidden. */
+    titleColumnId?: string;
     /** Current page of rows. In server mode = the page slice from the
      *  backend, in client mode = the whole dataset. Ignored when
      *  `sections` is provided (in grouped mode the rows come from the

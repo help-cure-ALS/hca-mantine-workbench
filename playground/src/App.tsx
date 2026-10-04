@@ -35,7 +35,7 @@ const ROWS: Row[] = [
 ];
 
 const COLUMNS: Column<Row>[] = [
-    { id: 'name', header: 'Name', sortable: true, minWidth: 160, cell: (row) => <Text fz="sm">{row.name}</Text> },
+    { id: 'name', header: 'Name', sortable: true, minWidth: 160, cell: (row) => <Text data-grid-title>{row.name}</Text> },
     { id: 'status', header: 'Status', width: 140, cell: (row) => <Badge variant="light">{row.status}</Badge> },
 ];
 
@@ -217,6 +217,7 @@ export function App() {
                     title="Workbench-Komponenten (Smoke-Test)"
                     expectation="PageHeader, SearchInput und DataGrid rendern ohne Fehler im Workbench-Stil."
                 >
+                    <Button component="a" href="?grid-demo=1" variant="light">DataGrid Playground öffnen</Button>
                     <SearchInput value={search} onChange={setSearch} placeholder="Suchen …" style={{ maxWidth: 320 }} />
                     <DataGrid<Row>
                         columns={COLUMNS}
@@ -485,7 +486,7 @@ export function App() {
                             renderCard={(row) => (
                                 <Paper withBorder radius="md" p="sm">
                                     <Text size="sm" fw={500}>{row.name}</Text>
-                                    <Text size="xs" c="dimmed">{row.email}</Text>
+                                    <Text size="xs" c="dimmed">{row.status}</Text>
                                 </Paper>
                             )}
                             onRowClick={() => undefined}

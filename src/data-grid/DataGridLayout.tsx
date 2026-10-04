@@ -131,7 +131,7 @@ export function DataGridLayout({
 
     if (narrow)
         return (
-            <GridProvider stateAdapter={stateAdapter} labels={labels}>
+            <GridProvider toolbarScope stateAdapter={stateAdapter} labels={labels}>
                 <Stack gap={0} style={{ flex: 1, minHeight: 0, minWidth: 0, height: "100%" }}>
                     <Box style={{ flex: 1, minHeight: 0, minWidth: 0 }}>{mainContent}</Box>
                     {contextPanel}
@@ -149,7 +149,7 @@ export function DataGridLayout({
         );
 
     return (
-        <GridProvider stateAdapter={stateAdapter} labels={labels}>
+        <GridProvider toolbarScope stateAdapter={stateAdapter} labels={labels}>
             <ResizableGroup
                 autoSaveId={`datagrid-${pageKey}-v2`}
                 orientation="horizontal"

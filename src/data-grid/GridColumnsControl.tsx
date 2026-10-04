@@ -4,148 +4,260 @@ import {
     ActionIcon,
     Button,
     Checkbox,
+    Divider,
     Group,
-    NumberInput,
     Popover,
-    ScrollArea,
     Stack,
     Text,
+    TextInput,
 } from "@mantine/core";
-import { ArrowLeft, ArrowRight, Columns3 } from "lucide-react";
+import { useState } from "react";
+import { Columns3, GripVertical, RotateCcw, Search, X } from "lucide-react";
+import {
+    arrangeGridColumns,
+    moveGridColumn,
+    setGridColumnVisible,
+    type GridPresentation,
+} from "./grid-state";
 import type { Column } from "./types";
-import { arrangeGridColumns, clampColumnWidth, type GridPresentation } from "./grid-state";
 import type { GridLabels } from "./GridProvider";
+import { useColumnDrag } from "./useColumnDrag";
+import classes from "./GridControls.module.css";
 
 export function GridColumnsControl<T>({
     columns,
     state,
     onChange,
     labels,
+    opened,
+    onOpenedChange,
 }: {
     columns: Column<T>[];
     state: GridPresentation;
-    onChange: (state: GridPresentation) => void;
+    onChange: (value: GridPresentation) => void;
     labels: GridLabels;
+    opened?: boolean;
+    onOpenedChange?: (value: boolean) => void;
 }) {
+    const [query, setQuery] = useState("");
+    const [localOpened, setLocalOpened] = useState(false);
+    const isOpen = opened ?? localOpened;
+    const setOpened = (value: boolean) => {
+        setLocalOpened(value);
+        onOpenedChange?.(value);
+        if (!value) setQuery("");
+    };
     const ordered = arrangeGridColumns(
-        columns.map((column) => ({ ...column, hidden: false })),
+        columns.map((c) => ({ ...c, hidden: false })),
         { ...state, hidden: [] },
     );
     const visible = arrangeGridColumns(columns, state);
-    const move = (id: string, direction: number) => {
-        const ids = ordered.map((column) => column.id);
-        const index = ids.indexOf(id);
-        let target = index + direction;
-        while (target >= 0 && target < ids.length && ordered[target].reorderable === false)
-            target += direction;
-        if (target < 0 || target >= ids.length) return;
-        [ids[index], ids[target]] = [ids[target], ids[index]];
-        onChange({ ...state, order: ids });
-    };
+    const move = (id: string, target: string) =>
+        onChange(moveGridColumn(columns, state, id, target));
+    const name = (column: Column<T>) =>
+        column.ariaLabel ?? (typeof column.header === "string" ? column.header : column.id);
     return (
-        <Popover position="bottom-end" withinPortal width="min(440px, 95vw)" trapFocus>
+        <Popover
+            position="bottom-end"
+            withinPortal
+            width="min(340px, calc(100vw - 24px))"
+            trapFocus
+            opened={isOpen}
+            onChange={setOpened}
+        >
             <Popover.Target>
-                <Button variant="default" leftSection={<Columns3 size={16} />}>
+                <Button
+                    size="sm"
+                    h={32}
+                    variant="default"
+                    leftSection={<Columns3 size={15} />}
+                    onClick={() => setOpened(!isOpen)}
+                    aria-expanded={isOpen}
+                    data-grid-columns-open={isOpen || undefined}
+                >
                     {labels.columns}
                 </Button>
             </Popover.Target>
-            <Popover.Dropdown>
-                <ScrollArea.Autosize mah="60vh">
-                    <Stack gap="sm">
-                        {ordered.map((column, index) => {
-                            const shown = visible.some((item) => item.id === column.id);
-                            const name =
-                                column.ariaLabel ??
-                                (typeof column.header === "string" ? column.header : column.id);
-                            return (
-                                <Stack key={column.id} gap="xs">
-                                    <Checkbox
-                                        label={column.header || name}
-                                        checked={shown}
-                                        disabled={
-                                            column.hideable === false ||
-                                            (shown && visible.length === 1)
-                                        }
-                                        onChange={() =>
-                                            onChange({
-                                                ...state,
-                                                shown: shown
-                                                    ? state.shown.filter((id) => id !== column.id)
-                                                    : [...state.shown, column.id],
-                                                hidden: shown
-                                                    ? [...state.hidden, column.id]
-                                                    : state.hidden.filter((id) => id !== column.id),
-                                            })
-                                        }
-                                    />
-                                    <Group gap="xs" wrap="nowrap">
-                                        <ActionIcon
-                                            variant="default"
-                                            disabled={column.reorderable === false || index === 0}
-                                            aria-label={`${labels.up}: ${name}`}
-                                            onClick={() => move(column.id, -1)}
-                                        >
-                                            <ArrowLeft size={16} />
-                                        </ActionIcon>
-                                        <ActionIcon
-                                            variant="default"
-                                            disabled={
-                                                column.reorderable === false ||
-                                                index === ordered.length - 1
-                                            }
-                                            aria-label={`${labels.down}: ${name}`}
-                                            onClick={() => move(column.id, 1)}
-                                        >
-                                            <ArrowRight size={16} />
-                                        </ActionIcon>
-                                        {column.resizable !== false && (
-                                            <NumberInput
-                                                label={labels.width}
-                                                aria-label={`${labels.width}: ${name}`}
-                                                value={
-                                                    state.widths[column.id] ??
-                                                    column.width ??
-                                                    column.minWidth ??
-                                                    160
-                                                }
-                                                min={column.minWidth ?? 64}
-                                                max={Math.max(
-                                                    column.minWidth ?? 64,
-                                                    column.maxWidth ?? 1200,
-                                                )}
-                                                onChange={(value) => {
-                                                    if (typeof value === "number")
-                                                        onChange({
-                                                            ...state,
-                                                            widths: {
-                                                                ...state.widths,
-                                                                [column.id]: clampColumnWidth(
-                                                                    column,
-                                                                    value,
-                                                                ),
-                                                            },
-                                                        });
-                                                }}
-                                                suffix=" px"
-                                                style={{ flex: 1 }}
-                                            />
-                                        )}
-                                    </Group>
-                                </Stack>
-                            );
-                        })}
-                        {!columns.length && <Text c="dimmed">{labels.empty}</Text>}
+            <Popover.Dropdown
+                p="sm"
+                onKeyDown={(event) => {
+                    if (event.key === "Escape") {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        setOpened(false);
+                    }
+                }}
+            >
+                <Stack gap="xs">
+                    <Group justify="space-between" wrap="nowrap">
+                        <Text fw={600} size="sm">
+                            {labels.columns}
+                        </Text>
+                        <ActionIcon
+                            size="sm"
+                            variant="subtle"
+                            color="gray"
+                            aria-label={labels.close}
+                            onClick={() => setOpened(false)}
+                        >
+                            <X size={16} />
+                        </ActionIcon>
+                    </Group>
+                    <TextInput
+                        size="sm"
+                        aria-label={labels.searchColumns}
+                        placeholder={labels.searchColumns}
+                        leftSection={<Search size={15} />}
+                        value={query}
+                        onChange={(event) => setQuery(event.currentTarget.value)}
+                    />
+                    <Group justify="space-between">
+                        <Text size="xs" c="dimmed" aria-live="polite">
+                            {visible.length} / {columns.length} {labels.visible}
+                        </Text>
                         <Button
+                            size="compact-xs"
                             variant="subtle"
                             onClick={() =>
-                                onChange({ ...state, hidden: [], shown: [], order: [], widths: {} })
+                                onChange({ ...state, hidden: [], shown: columns.map((c) => c.id) })
                             }
                         >
-                            {labels.reset}
+                            {labels.showAll}
                         </Button>
-                    </Stack>
-                </ScrollArea.Autosize>
+                    </Group>
+                    <div
+                        data-column-scroll
+                        style={{ maxHeight: "min(360px, 45vh)", overflowY: "auto" }}
+                    >
+                        <div data-column-scope>
+                            {ordered
+                                .filter((column) =>
+                                    name(column)
+                                        .toLocaleLowerCase()
+                                        .includes(query.trim().toLocaleLowerCase()),
+                                )
+                                .map((column) => {
+                                    const shown = visible.some((item) => item.id === column.id);
+                                    const movable = ordered.filter(
+                                        (item) => item.reorderable !== false,
+                                    );
+                                    const index = movable.findIndex(
+                                        (item) => item.id === column.id,
+                                    );
+                                    return (
+                                        <ColumnRow
+                                            key={column.id}
+                                            id={column.id}
+                                            label={name(column)}
+                                            shown={shown}
+                                            fixed={column.reorderable === false}
+                                            disabled={
+                                                column.hideable === false ||
+                                                (shown && visible.length === 1)
+                                            }
+                                            moveLabel={labels.reorderColumn}
+                                            onMove={(target) => move(column.id, target)}
+                                            onStep={(delta) => {
+                                                const target = movable[index + delta];
+                                                if (index >= 0 && target)
+                                                    move(column.id, target.id);
+                                            }}
+                                            onToggle={() =>
+                                                onChange(
+                                                    setGridColumnVisible(state, column.id, !shown),
+                                                )
+                                            }
+                                        />
+                                    );
+                                })}
+                            {!ordered.some((column) =>
+                                name(column)
+                                    .toLocaleLowerCase()
+                                    .includes(query.trim().toLocaleLowerCase()),
+                            ) && (
+                                <Text p="xs" size="sm" c="dimmed">
+                                    {labels.noColumns}
+                                </Text>
+                            )}
+                        </div>
+                    </div>
+                    <Text size="xs" c="dimmed">
+                        {labels.columnHint}
+                    </Text>
+                    <Divider />
+                    <Button
+                        variant="subtle"
+                        size="compact-sm"
+                        color="gray"
+                        leftSection={<RotateCcw size={14} />}
+                        onClick={() =>
+                            onChange({ ...state, hidden: [], shown: [], order: [], widths: {} })
+                        }
+                    >
+                        {labels.reset}
+                    </Button>
+                </Stack>
             </Popover.Dropdown>
         </Popover>
+    );
+}
+
+function ColumnRow({
+    id,
+    label,
+    shown,
+    disabled,
+    fixed,
+    moveLabel,
+    onMove,
+    onStep,
+    onToggle,
+}: {
+    id: string;
+    label: string;
+    shown: boolean;
+    disabled: boolean;
+    fixed: boolean;
+    moveLabel: string;
+    onMove: (id: string) => void;
+    onStep: (delta: number) => void;
+    onToggle: () => void;
+}) {
+    const drag = useColumnDrag(id, fixed ? undefined : onMove);
+    return (
+        <Group
+            className={classes.columnRow}
+            data-column-id={id}
+            data-movable={!fixed}
+            gap="xs"
+            wrap="nowrap"
+        >
+            <ActionIcon
+                {...drag}
+                className={classes.grip}
+                size="sm"
+                variant="subtle"
+                color="gray"
+                disabled={fixed}
+                aria-label={`${moveLabel}: ${label}`}
+                title={`${moveLabel} (Alt + ↑ / ↓)`}
+                onKeyDown={(event) => {
+                    if (event.altKey && (event.key === "ArrowUp" || event.key === "ArrowDown")) {
+                        event.preventDefault();
+                        onStep(event.key === "ArrowUp" ? -1 : 1);
+                    }
+                }}
+            >
+                <GripVertical size={16} />
+            </ActionIcon>
+            <Checkbox
+                size="xs"
+                label={label}
+                checked={shown}
+                disabled={disabled}
+                onChange={onToggle}
+                style={{ flex: 1 }}
+            />
+        </Group>
     );
 }

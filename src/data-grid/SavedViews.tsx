@@ -15,8 +15,9 @@ import {
     UnstyledButton,
 } from "@mantine/core";
 import { useLocalStorage } from "@mantine/hooks";
-import { Bookmark, ChevronDown, ChevronRight, MoreVertical, Pin, Plus, Star } from "lucide-react";
+import { ChevronDown, ChevronRight, MoreVertical, Pin, Plus, Star } from "lucide-react";
 import { FormDialog } from "../components/FormDialog";
+import { PageIcon } from "../components/PageIcon";
 import { useGridContext } from "./GridProvider";
 import { defaultGridPresentation, writeGridPresentation } from "./grid-state";
 
@@ -134,56 +135,81 @@ export function SavedViews<T extends SavedViewSummary>(props: SavedViewsProps<T>
         }
     };
     return (
-        <Stack gap="xs">
+        <Stack gap={3}>
             <Group justify="space-between" wrap="nowrap">
                 <UnstyledButton onClick={() => setCollapsed(!collapsed)} aria-expanded={!collapsed}>
-                    <Group gap="xs">
-                        {collapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
-                        <Text fw={600}>{labels.title}</Text>
+                    <Group gap={4}>
+                        {collapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
+                        <Text fz="12px" fw={600} c="dimmed" tt="uppercase">
+                            {labels.title}
+                        </Text>
                     </Group>
                 </UnstyledButton>
-                <ActionIcon variant="subtle" aria-label={labels.save} onClick={() => open("save")}>
-                    <Plus size={16} />
-                </ActionIcon>
+                {props.isVirtual && (
+                    <ActionIcon
+                        size="xs"
+                        variant="subtle"
+                        aria-label={labels.save}
+                        onClick={() => open("save")}
+                    >
+                        <Plus size={12} />
+                    </ActionIcon>
+                )}
             </Group>
-            {props.isVirtual && (
-                <Text c="dimmed" role="status">
-                    {labels.unsaved}
-                </Text>
-            )}
             <Collapse expanded={!collapsed}>
-                <Stack gap="xs">
-                    {!props.views.length && <Text c="dimmed">{labels.empty}</Text>}
+                <Stack gap={2}>
+                    {!props.views.length && !props.isVirtual && (
+                        <Text c="dimmed">{labels.empty}</Text>
+                    )}
                     {props.views.map((view) => (
-                        <Group key={view.id} gap="xs" wrap="nowrap">
+                        <Group
+                            key={view.id}
+                            gap={4}
+                            wrap="nowrap"
+                            px={5}
+                            py={2}
+                            style={{
+                                borderRadius: 4,
+                                background:
+                                    view.id === props.activeViewId
+                                        ? "var(--mantine-color-default-hover)"
+                                        : undefined,
+                            }}
+                        >
                             <UnstyledButton
                                 onClick={() => props.onApply(view)}
                                 aria-current={view.id === props.activeViewId ? "true" : undefined}
                                 style={{ flex: 1, minWidth: 0 }}
                             >
-                                <Group gap="xs" wrap="nowrap">
-                                    <Bookmark size={16} />
+                                <Group gap={8} wrap="nowrap">
+                                    <PageIcon size={18} style={{ flexShrink: 0, opacity: 0.6 }} />
+                                    {!view.is_default && view.pinned && (
+                                        <Pin size={11} style={{ flexShrink: 0 }} />
+                                    )}
                                     <Text
+                                        size="sm"
                                         truncate
                                         fw={view.id === props.activeViewId ? 600 : undefined}
+                                        style={{ minWidth: 0 }}
                                     >
                                         {view.name}
                                     </Text>
-                                    {view.is_default ? (
-                                        <Star size={14} />
-                                    ) : view.pinned ? (
-                                        <Pin size={14} />
-                                    ) : null}
+                                    {view.is_default && (
+                                        <Star size={11} style={{ flexShrink: 0 }} />
+                                    )}
                                 </Group>
                             </UnstyledButton>
                             <Menu withinPortal position="bottom-end">
                                 <Menu.Target>
                                     <ActionIcon
+                                        size="xs"
+                                        color="gray"
                                         variant="subtle"
                                         aria-label={`${labels.more}: ${view.name}`}
                                         disabled={busy}
+                                        style={{ marginInlineEnd: -5 }}
                                     >
-                                        <MoreVertical size={16} />
+                                        <MoreVertical size={12} />
                                     </ActionIcon>
                                 </Menu.Target>
                                 <Menu.Dropdown>
@@ -219,11 +245,31 @@ export function SavedViews<T extends SavedViewSummary>(props: SavedViewsProps<T>
                             </Menu>
                         </Group>
                     ))}
-                    <Button variant="subtle" onClick={() => open("save")}>
-                        {labels.save}
-                    </Button>
-                    {reset && (
-                        <Button variant="subtle" disabled={busy} onClick={reset}>
+                    {props.isVirtual && (
+                        <UnstyledButton
+                            onClick={() => open("save")}
+                            style={{
+                                padding: "2px 5px",
+                                borderRadius: 4,
+                                fontSize: "var(--mantine-font-size-sm)",
+                                color: "var(--mantine-color-blue-6)",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 8,
+                            }}
+                        >
+                            <PageIcon size={18} style={{ opacity: 0.6, flexShrink: 0 }} />
+                            {labels.save}
+                        </UnstyledButton>
+                    )}
+                    {reset && props.isVirtual && (
+                        <Button
+                            variant="subtle"
+                            size="compact-xs"
+                            color="gray"
+                            disabled={busy}
+                            onClick={reset}
+                        >
                             {labels.reset}
                         </Button>
                     )}

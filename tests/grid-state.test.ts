@@ -2,6 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
     arrangeGridColumns,
+    moveGridColumn,
+    setGridColumnVisible,
     defaultGridPresentation,
     readGridPresentation,
     writeGridPresentation,
@@ -123,4 +125,32 @@ test("selection scope ignores presentation, sorting and pagination but changes w
     assert.equal(gridSelectionScope(params), gridSelectionScope(next));
     next.set("q", "SOD1");
     assert.notEqual(gridSelectionScope(params), gridSelectionScope(next));
+});
+
+test("moving visible columns preserves hidden columns and fixed positions", () => {
+    const columns = [
+        { id: "fixed", reorderable: false },
+        { id: "title" },
+        { id: "private", hidden: true },
+        { id: "status" },
+    ];
+    const initial = defaultGridPresentation();
+    const next = moveGridColumn(columns, initial, "status", "title");
+    assert.deepEqual(next.order, ["fixed", "status", "title", "private"]);
+    assert.deepEqual(
+        arrangeGridColumns(columns, next).map((c) => c.id),
+        ["fixed", "status", "title"],
+    );
+    assert.equal(moveGridColumn(columns, next, "fixed", "status"), next);
+    assert.equal(moveGridColumn(columns, next, "status", "missing"), next);
+    const revealed = setGridColumnVisible(next, "private", true);
+    assert.deepEqual(
+        arrangeGridColumns(columns, revealed).map((c) => c.id),
+        ["fixed", "status", "title", "private"],
+    );
+    assert.equal(
+        arrangeGridColumns(columns, setGridColumnVisible(revealed, "private", false)).length,
+        3,
+    );
+    assert.deepEqual(initial.order, []);
 });

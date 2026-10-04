@@ -81,6 +81,48 @@ export function clampColumnWidth(column: GridColumnPreference, width: number): n
     return Math.round(Math.min(max, Math.max(min, width)));
 }
 
+/** Reordering includes hidden columns and keeps fixed control columns in place. */
+export function moveGridColumn(
+    columns: GridColumnPreference[],
+    state: GridPresentation,
+    id: string,
+    targetId: string,
+): GridPresentation {
+    const ordered = arrangeGridColumns(
+        columns.map((c) => ({ ...c, hidden: false })),
+        {
+            ...state,
+            hidden: [],
+        },
+    );
+    const movable = ordered.filter((c) => c.reorderable !== false).map((c) => c.id);
+    const from = movable.indexOf(id),
+        to = movable.indexOf(targetId);
+    if (from < 0 || to < 0 || from === to) return state;
+    movable.splice(to, 0, movable.splice(from, 1)[0]);
+    let index = 0;
+    return {
+        ...state,
+        order: ordered.map((c) => (c.reorderable === false ? c.id : movable[index++])),
+    };
+}
+
+export function setGridColumnVisible(
+    state: GridPresentation,
+    id: string,
+    visible: boolean,
+): GridPresentation {
+    return {
+        ...state,
+        hidden: visible
+            ? state.hidden.filter((key) => key !== id)
+            : [...new Set([...state.hidden, id])],
+        shown: visible
+            ? [...new Set([...state.shown, id])]
+            : state.shown.filter((key) => key !== id),
+    };
+}
+
 export function arrangeGridColumns<T extends GridColumnPreference>(
     columns: T[],
     state: GridPresentation,

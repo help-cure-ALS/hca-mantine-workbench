@@ -149,7 +149,7 @@ export function Board<T>({
                                     <Text fw={600} fz={13} lineClamp={1}>
                                         {column.label}
                                     </Text>
-                                    <Text fz={12} c="dimmed" ff="monospace">
+                                    <Text fz={13} c="dimmed" ff="monospace">
                                         {column.count ?? column.rows.length}
                                     </Text>
                                 </Group>

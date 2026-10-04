@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, useContext, useState, type ReactNode } from "react";
 
 export interface GridStateAdapter {
     params: URLSearchParams;
@@ -16,6 +16,17 @@ export const gridEnglish = {
     cards: "Cards",
     board: "Kanban",
     columns: "Columns",
+    searchColumns: "Find column…",
+    visible: "visible",
+    showAll: "Show all",
+    noColumns: "No matching columns",
+    reorderColumn: "Move column",
+    columnHint: "Drag to reorder. Keyboard: Alt + ↑ / ↓.",
+    fitColumn: "Fit to content",
+    fitAll: "Fit all columns to content",
+    hideColumn: "Hide column",
+    columnMenu: "Column actions",
+    noFilters: "none active",
     reset: "Reset columns",
     up: "Move left",
     down: "Move right",
@@ -47,6 +58,17 @@ export const gridGerman: GridLabels = {
     cards: "Kacheln",
     board: "Kanban",
     columns: "Spalten",
+    searchColumns: "Spalte suchen…",
+    visible: "sichtbar",
+    showAll: "Alle anzeigen",
+    noColumns: "Keine passenden Spalten",
+    reorderColumn: "Spalte verschieben",
+    columnHint: "Zum Sortieren ziehen. Tastatur: Alt + ↑ / ↓.",
+    fitColumn: "An Inhalt anpassen",
+    fitAll: "Alle Spalten an Inhalt anpassen",
+    hideColumn: "Spalte ausblenden",
+    columnMenu: "Spaltenaktionen",
+    noFilters: "keine aktiv",
     reset: "Spalten zurücksetzen",
     up: "Nach links",
     down: "Nach rechts",
@@ -75,6 +97,12 @@ interface GridContextValue {
     contextKey?: string;
     stateAdapter?: GridStateAdapter;
     labels: GridLabels;
+    toolbarSlot?: {
+        element: HTMLDivElement | null;
+        leadingElement: HTMLDivElement | null;
+        setLeadingElement: (element: HTMLDivElement | null) => void;
+        setElement: (element: HTMLDivElement | null) => void;
+    };
 }
 const GridContext = createContext<GridContextValue>({ labels: gridEnglish });
 
@@ -83,16 +111,24 @@ export function GridProvider({
     stateAdapter,
     contextKey,
     labels,
+    toolbarScope = false,
 }: {
     children: ReactNode;
+    /** Scope one toolbar and one grid within a page layout. */
+    toolbarScope?: boolean;
     contextKey?: string;
     stateAdapter?: GridStateAdapter;
     labels?: Partial<GridLabels>;
 }) {
     const parent = useContext(GridContext);
+    const [leadingElement, setLeadingElement] = useState<HTMLDivElement | null>(null);
+    const [element, setElement] = useState<HTMLDivElement | null>(null);
     return (
         <GridContext.Provider
             value={{
+                toolbarSlot: toolbarScope
+                    ? { element, setElement, leadingElement, setLeadingElement }
+                    : parent.toolbarSlot,
                 stateAdapter: stateAdapter ?? parent.stateAdapter,
                 contextKey: contextKey ?? parent.contextKey,
                 labels: { ...parent.labels, ...labels },

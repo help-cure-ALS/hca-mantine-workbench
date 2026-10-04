@@ -11,14 +11,22 @@ import {
     SimpleGrid,
     Stack,
     Text,
+    UnstyledButton,
 } from "@mantine/core";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
+import { GridToolbarMenu } from "./GridToolbar";
+import { measureGridColumn } from "./GridHeaderCell";
+import classes from "./GridControls.module.css";
 import { DataTable } from "./DataTable";
 import { GridCard, type GridCardContent } from "./GridCard";
 import { GridColumnsControl } from "./GridColumnsControl";
 import { GridProvider, useGridContext } from "./GridProvider";
 import {
     arrangeGridColumns,
+    clampColumnWidth,
+    moveGridColumn,
+    setGridColumnVisible,
     defaultGridPresentation,
     GRID_LAYOUTS,
     gridSelectionScope,
@@ -29,15 +37,13 @@ import {
     type GridPresentation,
 } from "./grid-state";
 import type { Column, DataGridProps, DataGridSection } from "./types";
+import { getTitleColumn } from "./title-column";
 
-function cardFromColumns<T>(row: T, columns: Column<T>[]): GridCardContent {
+function cardFromColumns<T>(row: T, columns: Column<T>[], titleColumnId?: string): GridCardContent {
     const fields = columns.filter(
         (column) => column.cardRole !== "hidden" && column.id !== "__select",
     );
-    const title =
-        fields.find((column) => column.cardRole === "title") ??
-        fields.find((column) => /^(title|name|claim_text|label)$/.test(column.id)) ??
-        fields.find((column) => !column.tight && (column.width ?? 100) > 48);
+    const title = getTitleColumn(fields, titleColumnId);
     const rawTitle =
         row && typeof row === "object" && title
             ? (row as Record<string, unknown>)[title.id]
@@ -79,7 +85,7 @@ export function DataGrid<T>(props: DataGridProps<T>) {
 }
 
 function GridContent<T>(props: DataGridProps<T>) {
-    const { labels, stateAdapter, contextKey: environmentKey } = useGridContext();
+    const { labels, stateAdapter, contextKey: environmentKey, toolbarSlot } = useGridContext();
     const {
         columns,
         data,
@@ -94,6 +100,20 @@ function GridContent<T>(props: DataGridProps<T>) {
         isRowSelectable,
         toolbar,
     } = props;
+    const rootRef = useRef<HTMLDivElement>(null);
+    const [externalScroll, setExternalScroll] = useState(false);
+    useEffect(() => {
+        // Existing page scroll containers also own infinite-scroll sentinels and sticky headers.
+        let parent = rootRef.current?.parentElement;
+        while (parent && parent !== document.body) {
+            if (/auto|scroll/.test(getComputedStyle(parent).overflowY)) {
+                setExternalScroll(true);
+                return;
+            }
+            parent = parent.parentElement;
+        }
+    }, []);
+    const [columnsOpened, setColumnsOpened] = useState(false);
     const [localState, setLocalState] = useState(defaultGridPresentation);
     const [localSelection, setLocalSelection] = useState<Set<string>>(new Set());
     const [previewWidths, setPreviewWidths] = useState<Record<string, number>>({});
@@ -158,16 +178,47 @@ function GridContent<T>(props: DataGridProps<T>) {
         [],
     );
     const update = (next: GridPresentation) => {
+        setPreviewWidths({});
         if (props.onPresentationChange) props.onPresentationChange(next);
         else if (stateAdapter)
             stateAdapter.onChange(writeGridPresentation(stateAdapter.params, next));
         else setLocalState(next);
     };
-    const visibleColumns = arrangeGridColumns(columns, {
+    const arranged = arrangeGridColumns(columns, {
         ...state,
         widths: { ...state.widths, ...previewWidths },
-    }).map((column) => ({
+    });
+    const fit = (ids: string[]) => {
+        const table = rootRef.current?.querySelector("table");
+        if (!table) return;
+        const widths = { ...state.widths };
+        for (const column of arranged) {
+            if (ids.includes(column.id) && column.resizable !== false)
+                widths[column.id] = clampColumnWidth(column, measureGridColumn(table, column.id));
+        }
+        setPreviewWidths({});
+        update({ ...state, widths });
+    };
+    const visibleColumns = arranged.map((column) => ({
         ...column,
+        onReorder:
+            column.reorderable === false
+                ? undefined
+                : (target: string) => update(moveGridColumn(columns, state, column.id, target)),
+        onMoveStep: (delta: number) => {
+            const movable = arranged.filter((item) => item.reorderable !== false);
+            const index = movable.findIndex((item) => item.id === column.id);
+            const target = movable[index + delta];
+            if (index >= 0 && target) update(moveGridColumn(columns, state, column.id, target.id));
+        },
+        onManageColumns: controls ? () => setColumnsOpened(true) : undefined,
+        onHide:
+            column.hideable === false || arranged.length === 1
+                ? undefined
+                : () => update(setGridColumnVisible(state, column.id, false)),
+        onFit: column.resizable === false ? undefined : () => fit([column.id]),
+        onFitAll: () => fit(arranged.map((item) => item.id)),
+        onResizeCancel: () => setPreviewWidths({}),
         onResize:
             column.resizable === false
                 ? undefined
@@ -201,7 +252,10 @@ function GridContent<T>(props: DataGridProps<T>) {
     };
     const card = (row: T, compact = false) => {
         const id = getRowId(row);
-        const content = { ...cardFromColumns(row, columns), ...getCard?.(row) };
+        const content = {
+            ...cardFromColumns(row, columns, props.titleColumnId),
+            ...getCard?.(row),
+        };
         const destinations =
             board?.onMove && board.canMove
                 ? board.columns.filter(
@@ -263,7 +317,7 @@ function GridContent<T>(props: DataGridProps<T>) {
     }
     const partial = total !== undefined && total > rows.length;
     const groupCount = (group: DataGridSection<T>) => (
-        <Text c="dimmed">
+        <Text fz={13} c="dimmed">
             {group.total !== undefined
                 ? `${group.data.length} / ${group.total}`
                 : group.data.length}
@@ -285,6 +339,7 @@ function GridContent<T>(props: DataGridProps<T>) {
                     ),
                 }))}
                 columns={visibleColumns}
+                titleColumnId={getTitleColumn(columns, props.titleColumnId)?.id ?? ""}
                 onRowClick={loading || busy ? undefined : onRowClick}
                 isRowSelectable={(row) =>
                     !loading && !busy && (!isRowSelectable || isRowSelectable(row))
@@ -340,131 +395,124 @@ function GridContent<T>(props: DataGridProps<T>) {
                 </div>
             </Box>
         );
-    return (
-        <Stack gap={0} style={{ minWidth: 0 }}>
-            {controls && (
-                <Group gap="sm" p="sm" wrap="wrap" justify="space-between" aria-label={labels.grid}>
-                    <Group gap="sm" wrap="wrap">
-                        {selectable && (
-                            <Checkbox
-                                label={labels.selectPage}
-                                checked={
-                                    selectableIds.length > 0 &&
-                                    selectableIds.every((id) => selection.has(id))
-                                }
-                                indeterminate={
-                                    selectableIds.some((id) => selection.has(id)) &&
-                                    !selectableIds.every((id) => selection.has(id))
-                                }
-                                disabled={loading || busy || !selectableIds.length}
-                                onChange={() =>
-                                    setSelection(toggleGridPage(selection, selectableIds))
-                                }
-                            />
-                        )}
-                        {selectable && selection.size > 0 && (
-                            <>
-                                <Text aria-live="polite">
-                                    {selection.size} {labels.selected}
-                                </Text>
-                                <Button variant="subtle" onClick={() => setSelection(new Set())}>
-                                    {labels.clear}
-                                </Button>
-                            </>
-                        )}
-                        {selectable && props.getAllMatchingIds && (
-                            <Button
-                                variant="subtle"
-                                disabled={loading || busy}
-                                onClick={() => {
-                                    const token = generation.current;
-                                    void perform(async () => {
-                                        const ids = await props.getAllMatchingIds!();
-                                        if (token === generation.current)
-                                            setSelection(new Set(ids));
-                                    });
-                                }}
-                            >
-                                {labels.allResults}
-                            </Button>
-                        )}
-                        {toolbar}
-                    </Group>
-                    <Group gap="sm">
-                        {props.grouping && (
-                            <Select
-                                aria-label={labels.group}
-                                value={groupBy}
-                                allowDeselect={false}
-                                data={[
-                                    { value: "none", label: labels.none },
-                                    ...props.grouping.options,
-                                ]}
-                                onChange={(value) => {
-                                    if (!value) return;
-                                    if (stateAdapter) {
-                                        const next = new URLSearchParams(stateAdapter.params);
-                                        next.set("group_by", value);
-                                        stateAdapter.onChange(next);
-                                    } else setLocalGroup(value);
-                                }}
-                            />
-                        )}
-                        {props.sortControl !== false &&
-                            props.onSortChange &&
-                            columns.some((column) => column.sortable) && (
-                                <Select
-                                    aria-label={labels.sort}
-                                    placeholder={labels.sort}
-                                    allowDeselect={false}
-                                    value={
-                                        props.sort?.sortBy
-                                            ? `${props.sort.sortBy}:${props.sort.sortDir}`
-                                            : null
-                                    }
-                                    data={columns
-                                        .filter((column) => column.sortable)
-                                        .flatMap((column) =>
-                                            ["asc", "desc"].map((dir) => ({
-                                                value: `${column.id}:${dir}`,
-                                                label: `${column.ariaLabel ?? (typeof column.header === "string" ? column.header : column.id)} · ${dir === "asc" ? labels.ascending : labels.descending}`,
-                                            })),
-                                        )}
-                                    onChange={(value) => {
-                                        if (value) {
-                                            const index = value.lastIndexOf(":");
-                                            props.onSortChange!({
-                                                sortBy: value.slice(0, index),
-                                                sortDir: value.slice(index + 1) as "asc" | "desc",
-                                            });
-                                        }
-                                    }}
-                                />
+    const leadingControls = controls ? (
+        <Group gap="sm" wrap="wrap">
+            {props.grouping && (
+                <GridToolbarMenu
+                    label={labels.group}
+                    value={groupBy}
+                    options={[{ value: "none", label: labels.none }, ...props.grouping.options]}
+                    onChange={(value) => {
+                        if (!value) return;
+                        if (stateAdapter) {
+                            const next = new URLSearchParams(stateAdapter.params);
+                            next.set("group_by", value);
+                            stateAdapter.onChange(next);
+                        } else setLocalGroup(value);
+                    }}
+                />
+            )}
+            {props.sortControl !== false &&
+                props.onSortChange &&
+                columns.some((column) => column.sortable) && (
+                    <GridToolbarMenu
+                        label={labels.sort}
+                        value={
+                            props.sort?.sortBy ? `${props.sort.sortBy}:${props.sort.sortDir}` : ""
+                        }
+                        options={columns
+                            .filter((column) => column.sortable)
+                            .flatMap((column) =>
+                                ["asc", "desc"].map((dir) => ({
+                                    value: `${column.id}:${dir}`,
+                                    label: `${column.ariaLabel ?? (typeof column.header === "string" ? column.header : column.id)} · ${dir === "asc" ? labels.ascending : labels.descending}`,
+                                })),
                             )}
-                        {layout === "grid" && (
-                            <GridColumnsControl
-                                columns={columns}
-                                state={state}
-                                onChange={update}
-                                labels={labels}
-                            />
-                        )}
-                        {layouts.length > 1 && (
-                            <Group gap="xs" role="group" aria-label={labels.grid}>
-                                {layouts.map((value: GridLayout) => (
-                                    <Button
-                                        key={value}
-                                        variant={layout === value ? "filled" : "default"}
-                                        aria-pressed={layout === value}
-                                        onClick={() => update({ ...state, layout: value })}
-                                    >
-                                        {labels[value]}
-                                    </Button>
-                                ))}
-                            </Group>
-                        )}
+                        onChange={(value) => {
+                            if (value) {
+                                const index = value.lastIndexOf(":");
+                                props.onSortChange!({
+                                    sortBy: value.slice(0, index),
+                                    sortDir: value.slice(index + 1) as "asc" | "desc",
+                                });
+                            }
+                        }}
+                    />
+                )}
+            {selectable && layout !== "grid" && (
+                <Checkbox
+                    label={labels.selectPage}
+                    checked={
+                        selectableIds.length > 0 && selectableIds.every((id) => selection.has(id))
+                    }
+                    indeterminate={
+                        selectableIds.some((id) => selection.has(id)) &&
+                        !selectableIds.every((id) => selection.has(id))
+                    }
+                    disabled={loading || busy || !selectableIds.length}
+                    onChange={() => setSelection(toggleGridPage(selection, selectableIds))}
+                />
+            )}
+            {selectable && props.getAllMatchingIds && (
+                <Button
+                    variant="subtle"
+                    disabled={loading || busy}
+                    onClick={() => {
+                        const token = generation.current;
+                        void perform(async () => {
+                            const ids = await props.getAllMatchingIds!();
+                            if (token === generation.current) setSelection(new Set(ids));
+                        });
+                    }}
+                >
+                    {labels.allResults}
+                </Button>
+            )}
+            {toolbar}
+        </Group>
+    ) : null;
+    const viewControls = controls ? (
+        <Group gap="sm" wrap="wrap">
+            {layout === "grid" && (
+                <GridColumnsControl
+                    columns={columns}
+                    state={state}
+                    onChange={update}
+                    labels={labels}
+                    opened={columnsOpened}
+                    onOpenedChange={setColumnsOpened}
+                />
+            )}
+            {layouts.length > 1 && (
+                <div className={classes.layouts} role="group" aria-label={labels.grid}>
+                    {layouts.map((value: GridLayout) => (
+                        <UnstyledButton
+                            className={classes.layout}
+                            key={value}
+                            aria-pressed={layout === value}
+                            onClick={() => update({ ...state, layout: value })}
+                        >
+                            {labels[value]}
+                        </UnstyledButton>
+                    ))}
+                </div>
+            )}
+        </Group>
+    ) : null;
+    return (
+        <Stack ref={rootRef} gap={0} style={{ minWidth: 0 }}>
+            {toolbarSlot?.element && toolbarSlot.leadingElement ? (
+                <>
+                    {createPortal(leadingControls, toolbarSlot.leadingElement)}
+                    {createPortal(viewControls, toolbarSlot.element)}
+                </>
+            ) : (
+                controls && (
+                    <Group p="sm" justify="space-between">
+                        {leadingControls}
+                        {viewControls}
                     </Group>
-                </Group>
+                )
             )}
             {(props.error || actionError) && (
                 <Alert color="red" title={labels.error}>
@@ -476,7 +524,12 @@ function GridContent<T>(props: DataGridProps<T>) {
                     {rows.length} / {total} {labels.loaded}
                 </Text>
             )}
-            {content}
+            <Box
+                data-column-scroll
+                style={{ overflowX: externalScroll ? undefined : "auto", minWidth: 0 }}
+            >
+                {content}
+            </Box>
         </Stack>
     );
 }
