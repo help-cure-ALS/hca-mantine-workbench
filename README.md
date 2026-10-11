@@ -295,6 +295,8 @@ Notes:
 
 `FormDialog` uses the same Mantine shell as `ConfirmDialog`. The default
 remains a centered modal with an overlay, focus trap, and scroll lock.
+Only the content scrolls: the header and footer remain visible, including
+custom footers and on small screens. Footer controls stay inside the form.
 
 - `draggable` makes the entire header a focusable drag area, without an
   extra icon. Header buttons keep their normal behavior. Drag with a mouse or touch, or use
@@ -319,7 +321,8 @@ Open **Dialog Playground** from the main page, or visit `?dialog-demo=1`.
 It demonstrates the unchanged standard dialog, a draggable modal, and a
 nonmodal dialog. It includes editable background controls, a comparison
 confirmation dialog, unsaved edits, delayed saving, long content, and a
-light/dark toggle. Check keyboard navigation, Escape, drag bounds, and a
+light/dark toggle. Check that footer buttons stay visible while scrolling
+long content, along with keyboard navigation, Escape, drag bounds, and a
 narrow viewport before releasing changes to this component.
 
 ### Production build (optional)

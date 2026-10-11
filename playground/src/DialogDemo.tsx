@@ -52,7 +52,7 @@ export function DialogDemo() {
             <Paper withBorder p="lg"><Stack>
                 <Title order={4}>Prüfpunkte</Title>
                 <Text>Leeren Dialog schließen: ohne Rückfrage. Nach einer Eingabe: Abbrechen, Schließen und Escape fragen vor dem Verwerfen. Während des Speicherns ist Schließen gesperrt.</Text>
-                <Text>Den gesamten Header ziehen oder ihn mit Tab fokussieren und die Pfeiltasten verwenden. Umschalt bewegt in größeren Schritten. Auch nach dem Verkleinern des Fensters und beim Einblenden langer Inhalte bleiben Titel und Schließen erreichbar.</Text>
+                <Text>Den gesamten Header ziehen oder ihn mit Tab fokussieren und die Pfeiltasten verwenden. Umschalt bewegt in größeren Schritten. Auch nach dem Verkleinern des Fensters und beim Einblenden langer Inhalte bleiben Header und Footer sichtbar. Nur der Inhalt scrollt; Abbrechen und Speichern sind jederzeit erreichbar.</Text>
                 <Text>Im Standarddialog bleibt der Fokus im Dialog. Beim nichtmodalen Dialog lässt sich auch mit Tab zurück auf die Seite wechseln. Escape auf der Seite schließt diesen Dialog nicht.</Text>
                 <Code block>{`<FormDialog\n  opened={opened}\n  onClose={close}\n  title="Beispiel bearbeiten"\n  draggable\n  modal={false}\n  dirty={dirty}\n  discardConfirm={discardLabels}\n  onSubmit={save}\n/>`}</Code>
             </Stack></Paper>
@@ -78,7 +78,7 @@ export function DialogDemo() {
             <Select label="Kategorie" placeholder="Bitte wählen" data={["Inhalt", "Darstellung", "Bedienung"]} value={category} onChange={setCategory} disabled={saving} />
             <Textarea label="Anmerkung" value={note} onChange={event => setNote(event.currentTarget.value)} disabled={saving} />
             <Checkbox label="Langen Inhalt einblenden" checked={longContent} onChange={event => setLongContent(event.currentTarget.checked)} />
-            {longContent && <Stack>{Array.from({ length: 12 }, (_, index) => <Text key={index}>Abschnitt {index + 1}: Auch bei umfangreichen Formularen bleibt der Dialog innerhalb des Fensters. Der Inhalt lässt sich scrollen.</Text>)}</Stack>}
+            {longContent && <Stack>{Array.from({ length: 12 }, (_, index) => <Text key={index}>Abschnitt {index + 1}: Auch bei umfangreichen Formularen bleibt der Dialog innerhalb des Fensters. Nur der Inhalt scrollt; Header und Footer bleiben sichtbar.</Text>)}</Stack>}
         </FormDialog>
     </Box>;
 }

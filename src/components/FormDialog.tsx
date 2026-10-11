@@ -35,7 +35,7 @@
  */
 
 import { useEffect, useRef, useState, type FormEventHandler, type ReactNode } from "react";
-import { Button, Group, Modal, Stack } from "@mantine/core";
+import { Box, Button, Group, Modal, Stack } from "@mantine/core";
 import { useOptionalConfirm } from "./ConfirmDialog";
 import { DialogCloseButton } from "./DialogCloseButton";
 import type { FormDrawerDiscardConfirm } from "./FormDrawer";
@@ -172,7 +172,7 @@ export function FormDialog({
     };
 
     const defaultFooter = onSubmit ? (
-        <Group justify="flex-end" gap="sm" mt="auto">
+        <Group justify="flex-end" gap="sm">
             {footerLeft}
             <Button
                 variant="default"
@@ -194,11 +194,32 @@ export function FormDialog({
         </Group>
     ) : null;
 
+    const resolvedFooter = footer ?? defaultFooter;
     const body = (
-        <Stack gap="md" style={{ flex: 1 }}>
-            {children}
-            {footer ?? defaultFooter}
-        </Stack>
+        <>
+            <Box
+                style={{
+                    flex: 1,
+                    minHeight: 0,
+                    overflowY: "auto",
+                    padding: "var(--mb-padding, var(--mantine-spacing-md))",
+                    paddingTop: 0,
+                }}
+            >
+                <Stack gap="md">{children}</Stack>
+            </Box>
+            {resolvedFooter && (
+                <Box
+                    style={{
+                        flexShrink: 0,
+                        padding: "var(--mb-padding, var(--mantine-spacing-md))",
+                        borderTop: "1px solid var(--mantine-color-default-border)",
+                    }}
+                >
+                    {resolvedFooter}
+                </Box>
+            )}
+        </>
     );
 
     return (
@@ -228,11 +249,19 @@ export function FormDialog({
                     minHeight: DIALOG_MIN_HEIGHT,
                     display: "flex",
                     flexDirection: "column",
+                    overflow: "hidden",
                     pointerEvents: "auto",
                     border: !modal ? "1px solid var(--mantine-color-default-border)" : undefined,
                     translate: draggable ? `${drag.position.x}px ${drag.position.y}px` : undefined,
                 },
-                body: { flex: 1, display: "flex", flexDirection: "column" },
+                header: { flexShrink: 0 },
+                body: {
+                    flex: 1,
+                    minHeight: 0,
+                    display: "flex",
+                    flexDirection: "column",
+                    padding: 0,
+                },
             }}
         >
             {modal && <Modal.Overlay />}
@@ -294,7 +323,12 @@ export function FormDialog({
                                 else onSubmit(event);
                             }}
                             noValidate={noValidate}
-                            style={{ display: "flex", flexDirection: "column", flex: 1 }}
+                            style={{
+                                display: "flex",
+                                flexDirection: "column",
+                                flex: 1,
+                                minHeight: 0,
+                            }}
                         >
                             {body}
                         </form>
