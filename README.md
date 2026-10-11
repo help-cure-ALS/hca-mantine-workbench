@@ -291,6 +291,37 @@ Notes:
 - After changing dependencies or the Vite config, restart with
   `npm run dev -- --force` to clear Vite's prebundle cache.
 
+### Form dialogs
+
+`FormDialog` uses the same Mantine shell as `ConfirmDialog`. The default
+remains a centered modal with an overlay, focus trap, and scroll lock.
+
+- `draggable` makes the entire header a focusable drag area, without an
+  extra icon. Header buttons keep their normal behavior. Drag with a mouse or touch, or use
+  arrow keys (Shift for larger steps). The dialog stays within the viewport
+  when dragged, resized, or expanded; reopening resets its position.
+- `modal={false}` removes the overlay, focus trap, and scroll lock. The
+  background remains interactive. A theme-colored border separates the
+  dialog from the page. Outside clicks do not close the dialog;
+  Escape closes only when focus is inside it. Its ARIA semantics reflect
+  the nonmodal behavior. Opening focuses the dialog; closing restores focus
+  unless the user has already moved back to the page.
+- `dirty` with `discardConfirm` routes cancel, close, and Escape through
+  `ConfirmDialogProvider`, matching `FormDrawer`. Supply translated title,
+  description, confirmLabel, and cancelLabel. Without the provider the
+  optional guard is inactive, as in the drawer. Mount the provider and keep
+  its zIndex above the form dialog when enabling this guard.
+- `submitting` blocks closing and repeated form submissions. `noValidate`
+  allows a caller to provide inline validation instead of browser messages.
+- `dragLabel` and `closeLabel` provide translated accessible names.
+
+Open **Dialog Playground** from the main page, or visit `?dialog-demo=1`.
+It demonstrates the unchanged standard dialog, a draggable modal, and a
+nonmodal dialog. It includes editable background controls, a comparison
+confirmation dialog, unsaved edits, delayed saving, long content, and a
+light/dark toggle. Check keyboard navigation, Escape, drag bounds, and a
+narrow viewport before releasing changes to this component.
+
 ### Production build (optional)
 
 ```bash

@@ -34,12 +34,17 @@
  * close button but will not let another component take its place.
  */
 
-import type { FormEventHandler, ReactNode } from "react";
+import { useEffect, useRef, useState, type FormEventHandler, type ReactNode } from "react";
 import { Button, Group, Modal, Stack } from "@mantine/core";
+import { useOptionalConfirm } from "./ConfirmDialog";
 import { DialogCloseButton } from "./DialogCloseButton";
+import type { FormDrawerDiscardConfirm } from "./FormDrawer";
+import { useDialogDrag } from "./use-dialog-drag";
 
 /** Same floor as the confirm dialog, so both read as one family. */
 const DIALOG_MIN_HEIGHT = 150;
+
+export type FormDialogDiscardConfirm = FormDrawerDiscardConfirm;
 
 export interface FormDialogProps {
     opened: boolean;
@@ -52,6 +57,8 @@ export interface FormDialogProps {
      * (cancel + submit). Leave it out to supply your own `footer`.
      */
     onSubmit?: FormEventHandler<HTMLFormElement>;
+    /** Disable native validation when the caller supplies inline errors. */
+    noValidate?: boolean;
     submitLabel?: string;
     cancelLabel?: string;
     submitDisabled?: boolean;
@@ -70,6 +77,15 @@ export interface FormDialogProps {
     zIndex?: number;
     /** Accessible name for the close button. Defaults to `"Close"`. */
     closeLabel?: string;
+    /** Modal by default. False keeps the background usable without an overlay. */
+    modal?: boolean;
+    /** Makes the entire header draggable, with arrow-key movement when focused. */
+    draggable?: boolean;
+    /** Localized accessible instructions for the draggable header. */
+    dragLabel?: string;
+    /** Same opt-in discard guard as FormDrawer. Requires ConfirmDialogProvider. */
+    dirty?: boolean;
+    discardConfirm?: FormDialogDiscardConfirm;
 }
 
 export function FormDialog({
@@ -78,6 +94,7 @@ export function FormDialog({
     title,
     children,
     onSubmit,
+    noValidate,
     submitLabel = "Save",
     cancelLabel = "Cancel",
     submitDisabled,
@@ -88,12 +105,70 @@ export function FormDialog({
     size = "md",
     zIndex,
     closeLabel = "Close",
+    modal = true,
+    draggable = false,
+    dragLabel = "Move dialog with the mouse or arrow keys",
+    dirty = false,
+    discardConfirm,
 }: FormDialogProps) {
-    // While a submit is in flight, the dialog stays put: closing it
-    // would leave the caller writing into a dialog that is no longer
-    // there, and the user unsure whether it went through.
-    const guardedClose = () => {
-        if (!submitting) onClose();
+    const confirm = useOptionalConfirm();
+    const [confirming, setConfirming] = useState(false);
+    const pendingClose = useRef(false);
+    const lifetime = useRef(0);
+    const latest = useRef({ opened, submitting, onClose });
+    const drag = useDialogDrag(opened, draggable);
+
+    useEffect(() => {
+        latest.current = { opened, submitting, onClose };
+    });
+    useEffect(() => {
+        lifetime.current += 1;
+        setConfirming(false);
+        return () => {
+            lifetime.current += 1;
+        };
+    }, [opened]);
+
+    useEffect(() => {
+        if (modal || !opened || !drag.element) return;
+        const element = drag.element;
+        const previous = document.activeElement;
+        element.focus({ preventScroll: true });
+        return () => {
+            if (
+                previous instanceof HTMLElement &&
+                previous.isConnected &&
+                (element.contains(document.activeElement) ||
+                    document.activeElement === document.body)
+            ) {
+                previous.focus({ preventScroll: true });
+            }
+        };
+    }, [opened, modal, drag.element]);
+
+    const guardedClose = async () => {
+        if (submitting || pendingClose.current) return;
+        if (!dirty || !discardConfirm || !confirm) {
+            onClose();
+            return;
+        }
+        pendingClose.current = true;
+        setConfirming(true);
+        const currentLifetime = lifetime.current;
+        try {
+            const result = await confirm({ ...discardConfirm, variant: "destructive" });
+            if (
+                result.confirmed &&
+                currentLifetime === lifetime.current &&
+                latest.current.opened &&
+                !latest.current.submitting
+            ) {
+                latest.current.onClose();
+            }
+        } finally {
+            pendingClose.current = false;
+            if (currentLifetime === lifetime.current) setConfirming(false);
+        }
     };
 
     const defaultFooter = onSubmit ? (
@@ -102,7 +177,7 @@ export function FormDialog({
             <Button
                 variant="default"
                 onClick={guardedClose}
-                disabled={submitting}
+                disabled={submitting || confirming}
                 type="button"
                 ml={footerLeft ? "auto" : undefined}
             >
@@ -111,7 +186,7 @@ export function FormDialog({
             <Button
                 type="submit"
                 loading={submitting}
-                disabled={submitDisabled}
+                disabled={submitDisabled || confirming}
                 color={submitColor}
             >
                 {submitLabel}
@@ -133,30 +208,79 @@ export function FormDialog({
             centered
             size={size}
             zIndex={zIndex}
-            closeOnEscape={!submitting}
-            closeOnClickOutside={!submitting}
+            trapFocus={modal}
+            lockScroll={modal}
+            returnFocus={modal}
+            // Handle Escape on the content, after nested selects and after
+            // existing modal listeners. A new discard question must not also
+            // consume the same Escape that opened it.
+            closeOnEscape={false}
+            closeOnClickOutside={modal && !submitting && !confirming}
+            // Avoid a transition transform shifting the drag bounds.
+            transitionProps={draggable ? { transition: "fade" } : undefined}
             // `styles` on the root, not `style` on the parts:
             // `ModalContent` hands the same `style` object to both the
             // dialog and the fixed wrapper that centres it. Keyed
             // styles reach one element each.
             styles={{
+                inner: !modal ? { pointerEvents: "none" } : undefined,
                 content: {
                     minHeight: DIALOG_MIN_HEIGHT,
                     display: "flex",
                     flexDirection: "column",
+                    pointerEvents: "auto",
+                    border: !modal ? "1px solid var(--mantine-color-default-border)" : undefined,
+                    translate: draggable ? `${drag.position.x}px ${drag.position.y}px` : undefined,
                 },
                 body: { flex: 1, display: "flex", flexDirection: "column" },
             }}
         >
-            <Modal.Overlay />
-            <Modal.Content>
-                <Modal.Header>
+            {modal && <Modal.Overlay />}
+            <Modal.Content
+                ref={drag.ref}
+                // Mantine's content assumes modality. renderRoot preserves its
+                // complete shell and styles while correcting the ARIA contract.
+                renderRoot={(props) => (
+                    <section
+                        {...props}
+                        aria-modal={modal || undefined}
+                        onKeyDown={(event) => {
+                            // Nonmodal Escape belongs to the focused dialog, not to
+                            // unrelated controls on the background page.
+                            if (
+                                event.key === "Escape" &&
+                                !event.isDefaultPrevented() &&
+                                !event.nativeEvent.isComposing
+                            ) {
+                                event.stopPropagation();
+                                void guardedClose();
+                            }
+                        }}
+                    />
+                )}
+            >
+                <Modal.Header
+                    role={draggable ? "group" : undefined}
+                    tabIndex={draggable ? 0 : undefined}
+                    aria-label={draggable ? dragLabel : undefined}
+                    style={
+                        draggable
+                            ? { cursor: "move", touchAction: "none", userSelect: "none" }
+                            : undefined
+                    }
+                    onKeyDown={draggable ? drag.onKeyDown : undefined}
+                    onPointerDown={draggable ? drag.onPointerDown : undefined}
+                    onPointerMove={draggable ? drag.onPointerMove : undefined}
+                    onPointerUp={draggable ? drag.onPointerUp : undefined}
+                    onPointerCancel={draggable ? drag.onPointerUp : undefined}
+                    onLostPointerCapture={draggable ? drag.onLostPointerCapture : undefined}
+                >
                     <Modal.Title fw={600}>{title}</Modal.Title>
                     <DialogCloseButton
                         onClick={guardedClose}
                         label={closeLabel}
                         size="md"
-                        disabled={submitting}
+                        disabled={submitting || confirming}
                         // Optically centred against the title's cap
                         // height rather than its line box.
                         style={{ marginTop: -3 }}
@@ -165,7 +289,11 @@ export function FormDialog({
                 <Modal.Body>
                     {onSubmit ? (
                         <form
-                            onSubmit={onSubmit}
+                            onSubmit={(event) => {
+                                if (submitting || confirming) event.preventDefault();
+                                else onSubmit(event);
+                            }}
+                            noValidate={noValidate}
                             style={{ display: "flex", flexDirection: "column", flex: 1 }}
                         >
                             {body}

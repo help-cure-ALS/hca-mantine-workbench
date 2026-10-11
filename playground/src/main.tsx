@@ -4,6 +4,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { App } from "./App";
 import { GridDemo } from "./GridDemo";
+import { DialogDemo } from "./DialogDemo";
 import { theme } from "./theme";
 
 import "@mantine/core/styles.css";
@@ -17,7 +18,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
             {/* FormDrawer's discard question needs this; without it the
                 drawer closes silently and the demo proves nothing. */}
             <ConfirmDialogProvider>
-                {(new URLSearchParams(location.search).has("grid-test") || new URLSearchParams(location.search).has("grid-demo")) ? <GridDemo /> : <App />}
+                {new URLSearchParams(location.search).has("dialog-demo") ? <DialogDemo /> : (new URLSearchParams(location.search).has("grid-test") || new URLSearchParams(location.search).has("grid-demo")) ? <GridDemo /> : <App />}
             </ConfirmDialogProvider>
         </MantineProvider>
     </React.StrictMode>,

@@ -89,6 +89,7 @@ export function App() {
                     title="Workbench Playground"
                     subtitle="Live-Check vor jedem Release — läuft direkt gegen ../src"
                 />
+                <Button component="a" href="?dialog-demo=1" variant="default">Dialog Playground: Standard, verschiebbar und nichtmodal</Button>
 
                 <Section
                     title="Radio, Checkbox, Switch — Beschreibung"
