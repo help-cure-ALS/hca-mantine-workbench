@@ -46,7 +46,9 @@ export function useDialogDrag(opened: boolean, enabled: boolean) {
     );
 
     useEffect(() => {
-        setPosition(ORIGIN);
+        // Keep the last position throughout the exit transition. Resetting on
+        // close would visibly move the fading dialog back to the center.
+        if (opened) setPosition(ORIGIN);
         drag.current = null;
     }, [opened, enabled]);
 
