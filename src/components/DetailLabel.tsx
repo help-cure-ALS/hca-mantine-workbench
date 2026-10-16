@@ -32,6 +32,13 @@
  * `gap` decide. `mb` exists for the layouts that are not stacks, but
  * reaching for it twice in one file is a sign the container is wrong.
  *
+ * ## Not a column header
+ *
+ * A data grid's column header is uppercase and small too, but it is a
+ * different thing: it names a column that runs down a table, it is
+ * sortable, and it belongs to the grid's own scale. It stays as it is
+ * and is not unified with this. Two roles that merely look alike.
+ *
  * ## Case
  *
  * `text-transform` does the uppercasing, so the text stays readable
