@@ -68,7 +68,11 @@ export interface DetailLabelProps {
 export function DetailLabel({ children, component = "span", mb, id }: DetailLabelProps) {
     return (
         <Text
-            component={component}
+            // Mantine types `component` through a generic, so a plain
+            // `ElementType` does not satisfy it. The cast names one
+            // concrete element to stand for all of them; what is
+            // actually rendered is whatever the caller passed.
+            component={component as "span"}
             id={id}
             size={DETAIL_TEXT.label}
             c="dimmed"
