@@ -24,8 +24,11 @@
  *            instead of appearing in place
  *   - UI.14: fix — UI.13 used requestAnimationFrame, which never fires
  *            in a background tab, so the drawer would not open at all
+ *   - UI.15: components (DetailHeader, DetailLabel, DetailField,
+ *            DetailFields and the detail-layout measurements — the
+ *            text roles of a detail page, next to PageHeader's bar)
  *
- * Current wave: UI.14.
+ * Current wave: UI.15.
  */
 
 export * from "./theme";

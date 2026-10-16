@@ -29,6 +29,12 @@
    *  line; sticky headers in scroll containers have the same height. */
     --mantine-workbench-header-h: 54px;
 
+    /* Title size of a detail page (UI.15). Between PageHeader's 22px
+       for a list and the 28px one consumer had invented for a single
+       view. A variable rather than a number in each page, so the next
+       detail view cannot quietly pick 26. */
+    --mantine-workbench-detail-title: 24px;
+
     /** Background of the info-bubble badge in the `<PageHeader>` (round "i"
    *  to the right of the title, containing the subtitle as a tooltip). */
     --mantine-workbench-info-bubble-bg: var(--mantine-color-dark-6);

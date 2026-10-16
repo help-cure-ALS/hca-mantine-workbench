@@ -5,6 +5,7 @@ import ReactDOM from "react-dom/client";
 import { App } from "./App";
 import { GridDemo } from "./GridDemo";
 import { DialogDemo } from "./DialogDemo";
+import { DetailDemo } from "./DetailDemo";
 import { theme } from "./theme";
 
 import "@mantine/core/styles.css";
@@ -18,7 +19,15 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
             {/* FormDrawer's discard question needs this; without it the
                 drawer closes silently and the demo proves nothing. */}
             <ConfirmDialogProvider>
-                {new URLSearchParams(location.search).has("dialog-demo") ? <DialogDemo /> : (new URLSearchParams(location.search).has("grid-test") || new URLSearchParams(location.search).has("grid-demo")) ? <GridDemo /> : <App />}
+                {(() => {
+                    // One demo per query flag; the plain App is the
+                    // default. `?detail-demo` is UI.15.
+                    const flags = new URLSearchParams(location.search);
+                    if (flags.has("dialog-demo")) return <DialogDemo />;
+                    if (flags.has("detail-demo")) return <DetailDemo />;
+                    if (flags.has("grid-test") || flags.has("grid-demo")) return <GridDemo />;
+                    return <App />;
+                })()}
             </ConfirmDialogProvider>
         </MantineProvider>
     </React.StrictMode>,

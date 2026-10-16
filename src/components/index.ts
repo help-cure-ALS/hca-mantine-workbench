@@ -11,6 +11,9 @@
  *   - ThemeToggle
  *   - BulkActionBar (incl. BulkPill, BulkSeparator)
  *   - CountrySelect (ISO codes, localized via Intl.DisplayNames)
+ *   - DetailHeader / DetailLabel / DetailField / DetailFields and the
+ *     detail-layout measurements (the opening and the body of a
+ *     detail page, as opposed to PageHeader's list bar)
  *
  * Imports:
  *   - `import { useConfirm, PageHeader, ... } from "@hca/mantine-workbench"`
@@ -54,3 +57,22 @@ export { CountrySelect } from "./CountrySelect";
 export type { CountrySelectProps } from "./CountrySelect";
 
 export { PageIcon, type PageIconProps } from "./PageIcon";
+
+export { DetailHeader } from "./DetailHeader";
+export type { DetailHeaderProps } from "./DetailHeader";
+
+export { DetailLabel } from "./DetailLabel";
+export type { DetailLabelProps } from "./DetailLabel";
+
+export { DetailField, DetailFields } from "./DetailField";
+export type { DetailFieldProps, DetailFieldsProps } from "./DetailField";
+
+export {
+    DETAIL_LAYOUT,
+    DETAIL_MAX_WIDTH,
+    DETAIL_PADDING,
+    DETAIL_SECTION_GAP,
+    DETAIL_CARD_RADIUS,
+    DETAIL_LABEL_TRACKING,
+    detailBodyPadding,
+} from "./detail-layout";
