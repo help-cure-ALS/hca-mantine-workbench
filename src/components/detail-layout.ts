@@ -53,6 +53,24 @@ export const DETAIL_CARD_RADIUS = "md";
 export const DETAIL_LABEL_TRACKING = "0.08em";
 
 /**
+ * The four text roles a detail page has, as Mantine size keys.
+ *
+ * `label` 11 px, `value` and `body` 15 px, `meta` 13 px. The value of
+ * a field is the content of the page and therefore body size; 13 px
+ * is for the one line of identifiers and dates that a reader scans
+ * rather than reads. The pages this family was extracted from had the
+ * values at 13 px in 72 of 86 places, which made a whole detail view
+ * read as fine print, so the sizes are named here instead of being
+ * decided again per component.
+ */
+export const DETAIL_TEXT = Object.freeze({
+    label: "xs",
+    value: "md",
+    body: "md",
+    meta: "sm",
+});
+
+/**
  * Everything above in one object, for a caller that wants to spread
  * it. Frozen: these are a contract, not defaults to be mutated.
  */
@@ -62,6 +80,7 @@ export const DETAIL_LAYOUT = Object.freeze({
     sectionGap: DETAIL_SECTION_GAP,
     cardRadius: DETAIL_CARD_RADIUS,
     labelTracking: DETAIL_LABEL_TRACKING,
+    text: DETAIL_TEXT,
 });
 
 /**

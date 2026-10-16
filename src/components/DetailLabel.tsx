@@ -41,7 +41,7 @@
 
 import { Text } from "@mantine/core";
 import type { ElementType, ReactNode } from "react";
-import { DETAIL_LABEL_TRACKING } from "./detail-layout";
+import { DETAIL_LABEL_TRACKING, DETAIL_TEXT } from "./detail-layout";
 
 export interface DetailLabelProps {
     children: ReactNode;
@@ -63,7 +63,7 @@ export function DetailLabel({ children, component = "span", mb, id }: DetailLabe
         <Text
             component={component}
             id={id}
-            size="xs"
+            size={DETAIL_TEXT.label}
             fw={500}
             c="dimmed"
             tt="uppercase"

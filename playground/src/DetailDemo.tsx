@@ -1,4 +1,4 @@
-import { Badge, Box, Button, Group, Paper, Stack, Text } from '@mantine/core';
+import { Badge, Box, Button, Group, Paper, Stack, Text } from "@mantine/core";
 import {
     DETAIL_CARD_RADIUS,
     DETAIL_MAX_WIDTH,
@@ -7,8 +7,9 @@ import {
     DetailFields,
     DetailHeader,
     DetailLabel,
+    DetailMeta,
     detailBodyPadding,
-} from '@hca/mantine-workbench';
+} from "@hca/mantine-workbench";
 
 /**
  * Visual pre-release check for the detail family (UI.15). Every
@@ -16,7 +17,11 @@ import {
  * tag a release.
  */
 
-function Section({ title, expectation, children }: {
+function Section({
+    title,
+    expectation,
+    children,
+}: {
     title: string;
     expectation: string;
     children: React.ReactNode;
@@ -25,7 +30,7 @@ function Section({ title, expectation, children }: {
         <Paper withBorder p="lg">
             <Stack gap="sm">
                 <Text fw={600}>{title}</Text>
-                <Text size="sm" c="dimmed">Erwartung: {expectation}</Text>
+                <Text c="dimmed">Erwartung: {expectation}</Text>
                 {children}
             </Stack>
         </Paper>
@@ -36,6 +41,25 @@ export function DetailDemo() {
     return (
         <Stack gap="lg">
             <Section
+                title="Schriftgrößenleiter"
+                expectation="Vier Stufen, von oben nach unten: 24px Titel, 15px Wert und Fließtext, 13px Metazeile, 11px Label. Nur die Metazeile und das Label sind kleiner als der Fließtext. Wenn ein Feldwert kleiner aussieht als dieser Absatz, ist der Fehler zurück."
+            >
+                <Stack gap="xs">
+                    <Text
+                        fw={600}
+                        style={{
+                            fontSize: "var(--mantine-workbench-detail-title, 24px)",
+                        }}
+                    >
+                        Titel, 24px
+                    </Text>
+                    <Text>Wert und Fließtext, 15px</Text>
+                    <DetailMeta>Metazeile, 13px</DetailMeta>
+                    <DetailLabel>Label, 11px</DetailLabel>
+                </Stack>
+            </Section>
+
+            <Section
                 title="DetailHeader"
                 expectation="Eyebrow in Großbuchstaben, Titel in 24px, Badges darunter, Metazeile zuletzt. Die Aktion rechts bleibt auf der ersten Zeile, auch wenn der Titel umbricht."
             >
@@ -44,17 +68,23 @@ export function DetailDemo() {
                     title="A Case Report and a Review of TRAPPC4-Related TRAPPopathy, with a title long enough to wrap onto a second line"
                     badges={
                         <>
-                            <Badge variant="light" color="teal">Tier A</Badge>
+                            <Badge variant="light" color="teal">
+                                Tier A
+                            </Badge>
                             <Badge variant="light">Volltext</Badge>
-                            <Badge variant="light" color="blue">PDF</Badge>
+                            <Badge variant="light" color="blue">
+                                PDF
+                            </Badge>
                         </>
                     }
                     meta={
-                        <Text size="sm" c="dimmed">
-                            DOI 10.1002/jdn.70167 · PMID 42543852 · 16.08.2026
-                        </Text>
+                        <DetailMeta>DOI 10.1002/jdn.70167 · PMID 42543852 · 16.08.2026</DetailMeta>
                     }
-                    actions={<Button size="sm" variant="default">Öffnen</Button>}
+                    actions={
+                        <Button size="sm" variant="default">
+                            Öffnen
+                        </Button>
+                    }
                 />
             </Section>
 
@@ -72,9 +102,8 @@ export function DetailDemo() {
                 <Stack gap={8}>
                     <DetailLabel>Abstract</DetailLabel>
                     <Text>
-                        Neurodevelopmental disorder with spasticity, epilepsy and brain
-                        atrophy (NEDESBA) is a rare autosomal recessive condition, first
-                        described in 2020.
+                        Neurodevelopmental disorder with spasticity, epilepsy and brain atrophy
+                        (NEDESBA) is a rare autosomal recessive condition, first described in 2020.
                     </Text>
                 </Stack>
             </Section>
@@ -115,22 +144,21 @@ export function DetailDemo() {
                     maw={DETAIL_MAX_WIDTH}
                     style={{
                         padding: detailBodyPadding(),
-                        border: '1px dashed var(--mantine-color-default-border)',
+                        border: "1px dashed var(--mantine-color-default-border)",
                     }}
                 >
                     <Stack gap={DETAIL_SECTION_GAP}>
                         <Stack gap={8}>
                             <DetailLabel>Erster Abschnitt</DetailLabel>
-                            <Text size="sm">
-                                Der Abstand zum nächsten Abschnitt ist der
-                                Abschnittsabstand, nicht ein Rand an einer der
-                                beiden Überschriften.
+                            <Text>
+                                Der Abstand zum nächsten Abschnitt ist der Abschnittsabstand, nicht
+                                ein Rand an einer der beiden Überschriften.
                             </Text>
                         </Stack>
                         <Stack gap={8}>
                             <DetailLabel>Zweiter Abschnitt</DetailLabel>
                             <Paper withBorder p="md" radius={DETAIL_CARD_RADIUS}>
-                                <Text size="sm">Eine Karte im Detailradius.</Text>
+                                <Text>Eine Karte im Detailradius.</Text>
                             </Paper>
                         </Stack>
                     </Stack>

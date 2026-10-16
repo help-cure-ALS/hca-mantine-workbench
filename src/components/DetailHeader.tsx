@@ -10,7 +10,7 @@
  *   eyebrow="Publication"
  *   title={paper.title}
  *   badges={<><Badge>Tier A</Badge><Badge>PDF</Badge></>}
- *   meta={<Text size="sm" c="dimmed">{paper.doi}</Text>}
+ *   meta={<DetailMeta>{paper.doi}</DetailMeta>}
  * />
  * ```
  *
@@ -37,9 +37,27 @@
  * `h1` elsewhere.
  */
 
-import { Group, Stack, Title } from "@mantine/core";
+import { Group, Stack, Text, Title } from "@mantine/core";
 import type { ReactNode } from "react";
+import { DETAIL_TEXT } from "./detail-layout";
 import { DetailLabel } from "./DetailLabel";
+
+/**
+ * The one line of identifiers and dates under the title: a DOI, a
+ * PMID, a date.
+ *
+ * 13 px and dimmed, and the only thing in the detail family that is
+ * smaller than body size. It earns that because nobody reads this
+ * line — they look in it for one value they already know the shape
+ * of. Field values are not this and must not borrow it.
+ */
+export function DetailMeta({ children }: { children: ReactNode }) {
+    return (
+        <Text size={DETAIL_TEXT.meta} c="dimmed">
+            {children}
+        </Text>
+    );
+}
 
 export interface DetailHeaderProps {
     /** What kind of thing this is: "Publication", "Study", "Patent". */

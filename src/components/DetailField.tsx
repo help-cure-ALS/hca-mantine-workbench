@@ -37,6 +37,7 @@
 
 import { SimpleGrid, Stack, Text } from "@mantine/core";
 import type { ReactNode } from "react";
+import { DETAIL_TEXT } from "./detail-layout";
 import { DetailLabel } from "./DetailLabel";
 
 export interface DetailFieldProps {
@@ -67,7 +68,10 @@ export function DetailField({ label, value, mono, emptyLabel }: DetailFieldProps
         <Stack gap={2}>
             <DetailLabel>{label}</DetailLabel>
             <Text
-                size="sm"
+                // The value is content, so it is body size. See
+                // DETAIL_TEXT for why that is stated there and not
+                // chosen here.
+                size={DETAIL_TEXT.value}
                 c={empty ? "dimmed" : undefined}
                 fs={empty ? "italic" : undefined}
                 ff={!empty && mono ? "monospace" : undefined}

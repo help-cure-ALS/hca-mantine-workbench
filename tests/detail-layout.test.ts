@@ -17,6 +17,7 @@ import {
     DETAIL_MAX_WIDTH,
     DETAIL_PADDING,
     DETAIL_SECTION_GAP,
+    DETAIL_TEXT,
     detailBodyPadding,
 } from "../src/components/detail-layout.ts";
 
@@ -64,6 +65,25 @@ describe("detail layout", () => {
         assert.equal(DETAIL_LAYOUT.cardRadius, DETAIL_CARD_RADIUS);
         assert.equal(DETAIL_LAYOUT.labelTracking, DETAIL_LABEL_TRACKING);
         assert.deepEqual(DETAIL_LAYOUT.padding, DETAIL_PADDING);
+    });
+
+    it("gives a field value body size, not the small size", () => {
+        // The pages this family was extracted from had the values at
+        // 13 px in 72 of 86 places, so a whole detail view read as
+        // fine print. A value is content; 15 px is content.
+        assert.equal(DETAIL_TEXT.value, "md");
+        assert.equal(DETAIL_TEXT.body, "md");
+        assert.notEqual(DETAIL_TEXT.value, "sm");
+    });
+
+    it("keeps exactly one role below body size", () => {
+        // Only the line of identifiers and dates, which gets scanned
+        // rather than read. If a second role turns up at 13 px, the
+        // drift has started again.
+        const belowBody = Object.entries(DETAIL_TEXT)
+            .filter(([, size]) => size === "sm" || size === "xs")
+            .map(([role]) => role);
+        assert.deepEqual(belowBody.sort(), ["label", "meta"]);
     });
 
     it("is frozen, so a consumer cannot bend it for one page", () => {

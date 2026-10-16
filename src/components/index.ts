@@ -58,7 +58,7 @@ export type { CountrySelectProps } from "./CountrySelect";
 
 export { PageIcon, type PageIconProps } from "./PageIcon";
 
-export { DetailHeader } from "./DetailHeader";
+export { DetailHeader, DetailMeta } from "./DetailHeader";
 export type { DetailHeaderProps } from "./DetailHeader";
 
 export { DetailLabel } from "./DetailLabel";
@@ -74,5 +74,6 @@ export {
     DETAIL_SECTION_GAP,
     DETAIL_CARD_RADIUS,
     DETAIL_LABEL_TRACKING,
+    DETAIL_TEXT,
     detailBodyPadding,
 } from "./detail-layout";
