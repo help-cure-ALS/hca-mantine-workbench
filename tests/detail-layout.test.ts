@@ -67,48 +67,33 @@ describe("detail layout", () => {
         assert.deepEqual(DETAIL_LAYOUT.padding, DETAIL_PADDING);
     });
 
-    it("gives a field value body size in the body colour", () => {
+    it("gives a field value body size", () => {
         // The pages this family was extracted from had the values at
         // 13 px in 72 of 86 places, so a whole detail view read as
-        // fine print. A value is content: 15 px, and no colour of its
-        // own, which means the body colour.
-        assert.equal(DETAIL_TEXT.value.size, "md");
-        assert.equal(DETAIL_TEXT.value.c, undefined);
+        // fine print. A value is content, and content is 15 px.
+        assert.equal(DETAIL_TEXT.value, "md");
+        assert.equal(DETAIL_TEXT.body, "md");
     });
 
-    it("never pairs body size with grey, or a small size with black", () => {
-        // This is the rule, not a coincidence of the current values:
-        // a role is a size and a colour together. 15 px grey and
-        // 13 px black are the combinations that made four detail
-        // views look like a mix rather than a hierarchy.
-        //
-        // `absence` is the one exception and is checked separately
-        // below: it is not text, it is the mark for a missing value.
-        for (const [role, { size, c }] of Object.entries(DETAIL_TEXT)) {
-            if (role === "absence") continue;
-            if (size === "md") {
-                assert.equal(c, undefined, `${role} is body size and must be black`);
-            } else {
-                assert.equal(c, "dimmed", `${role} is below body size and must be grey`);
-            }
-        }
-    });
-
-    it("marks a missing value at the value's size in grey", () => {
-        // It stands where a value stands, so it keeps the size; there
-        // is nothing to read, so it takes the quiet tone.
-        assert.equal(DETAIL_TEXT.absence.size, DETAIL_TEXT.value.size);
-        assert.equal(DETAIL_TEXT.absence.c, "dimmed");
-    });
-
-    it("keeps exactly two text roles below body size", () => {
+    it("keeps exactly two roles below body size", () => {
         // The caption of a field and the line of identifiers. If a
         // third turns up, the drift has started again.
         const belowBody = Object.entries(DETAIL_TEXT)
-            .filter(([, { size }]) => size === "sm" || size === "xs")
+            .filter(([, size]) => size === "sm" || size === "xs")
             .map(([role]) => role)
             .sort();
         assert.deepEqual(belowBody, ["label", "meta"]);
+    });
+
+    it("states sizes only, and says nothing about colour", () => {
+        // Colour is not derived from size. A table row shares one
+        // size across its cells, so colour is the only axis left to
+        // hold a column back, and 13 px black next to 13 px grey is
+        // right there. A rule that has to be broken in every grid is
+        // worse than no rule, so this object does not carry one.
+        for (const value of Object.values(DETAIL_TEXT)) {
+            assert.equal(typeof value, "string");
+        }
     });
 
     it("is frozen, so a consumer cannot bend it for one page", () => {

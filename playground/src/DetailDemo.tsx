@@ -41,8 +41,8 @@ export function DetailDemo() {
     return (
         <Stack gap="lg">
             <Section
-                title="Schriftgrößenleiter"
-                expectation="Jede Stufe ist Größe und Farbe zusammen: 24px schwarz, 15px schwarz, 13px grau, 11px grau. Es gibt kein 15px grau und kein 13px schwarz. Grau ist immer kleiner als der Fließtext, schwarz immer 15px oder größer."
+                title="Größenleiter der Lesespalte"
+                expectation="Vier Größenstufen der Lesespalte: 24px Titel, 15px Wert und Fließtext, 13px Metazeile, 11px Label. Die Größe gehört zur Rolle. Die Farbe nicht: in einem Zeilenraster teilen sich alle Zellen einer Zeile eine Größe, dort trägt die Farbe allein."
             >
                 <Stack gap="xs">
                     <Text
@@ -51,11 +51,11 @@ export function DetailDemo() {
                             fontSize: "var(--mantine-workbench-detail-title, 24px)",
                         }}
                     >
-                        Titel, 24px, schwarz
+                        Titel, 24px
                     </Text>
-                    <Text>Wert und Fließtext, 15px, schwarz</Text>
-                    <DetailMeta>Metazeile, 13px, grau</DetailMeta>
-                    <DetailLabel>Label, 11px, grau</DetailLabel>
+                    <Text>Wert und Fließtext, 15px</Text>
+                    <DetailMeta>Metazeile, 13px</DetailMeta>
+                    <DetailLabel>Label, 11px</DetailLabel>
                 </Stack>
             </Section>
 

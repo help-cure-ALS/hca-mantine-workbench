@@ -53,42 +53,31 @@ export const DETAIL_CARD_RADIUS = "md";
 export const DETAIL_LABEL_TRACKING = "0.08em";
 
 /**
- * The text roles of a detail page: size and colour together.
+ * The size of each text role on a detail page.
  *
- * This is the rule the pages were missing. Size and colour were
- * written independently, so every combination existed — 15 px grey,
- * 13 px black, 11 px black — and none of them meant anything. Here a
- * role is one pair, and there is no way to ask for half of it.
+ * Sizes only. Colour is deliberately not derived from size: in a row
+ * of a table every cell must share one size, so colour is the only
+ * axis left there to hold one column back, and 13 px black beside
+ * 13 px grey is correct in that context. A rule tying the two
+ * together would be right for this reading column and wrong for every
+ * grid in the product, and a rule that has to be broken somewhere is
+ * worse than no rule.
  *
- * Reading down the list, each step is both a size step and a tone
- * step, so the hierarchy survives a screenshot, a print-out and a
- * reader who is not looking closely:
- *
- * | role     | size      | colour  |
- * | -------- | --------- | ------- |
- * | title    | 24 px     | text    |
- * | value    | 15 px     | text    |
- * | body     | 15 px     | text    |
- * | meta     | 13 px     | dimmed  |
- * | label    | 11 px     | dimmed  |
- * | absence  | 15 px     | dimmed  |
- *
- * 15 px is body text and therefore black. The two grey roles are both
- * smaller than body text, and both are things a reader skips: the
- * caption of a field, and the line of identifiers they scan for one
- * value. `absence` is the single deliberate exception — it keeps the
- * value's size, because it stands in a value's place, and takes the
- * grey because there is nothing there to read.
+ * What is fixed here is the size per role. The pages this family was
+ * extracted from had the field values at 13 px in 72 of 86 places,
+ * which made a whole detail view read as fine print.
  *
  * `title` is not in the object: it is a CSS variable, because `Title`
  * renders text and text sizes belong to the theme.
  */
 export const DETAIL_TEXT = Object.freeze({
-    value: Object.freeze({ size: "md", c: undefined }),
-    body: Object.freeze({ size: "md", c: undefined }),
-    meta: Object.freeze({ size: "sm", c: "dimmed" }),
-    label: Object.freeze({ size: "xs", c: "dimmed" }),
-    absence: Object.freeze({ size: "md", c: "dimmed" }),
+    /** A field value and ordinary prose: body size. */
+    value: "md",
+    body: "md",
+    /** The line of identifiers and dates under the title. */
+    meta: "sm",
+    /** The uppercase caption above a section or a value. */
+    label: "xs",
 });
 
 /**

@@ -64,16 +64,15 @@ function isEmpty(value: ReactNode): boolean {
 
 export function DetailField({ label, value, mono, emptyLabel }: DetailFieldProps) {
     const empty = isEmpty(value);
-    // One role, not a size and a colour chosen separately. An empty
-    // field takes the value's size and the quiet tone, because it
-    // stands in a value's place and has nothing to read.
-    const role = empty ? DETAIL_TEXT.absence : DETAIL_TEXT.value;
     return (
         <Stack gap={2}>
             <DetailLabel>{label}</DetailLabel>
             <Text
-                size={role.size}
-                c={role.c}
+                // An empty field keeps the value's size, because it
+                // stands where a value stands, and takes the quiet
+                // tone because there is nothing there to read.
+                size={DETAIL_TEXT.value}
+                c={empty ? "dimmed" : undefined}
                 fs={empty ? "italic" : undefined}
                 ff={!empty && mono ? "monospace" : undefined}
                 style={{ overflowWrap: "anywhere" }}

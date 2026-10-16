@@ -63,8 +63,8 @@ export function DetailLabel({ children, component = "span", mb, id }: DetailLabe
         <Text
             component={component}
             id={id}
-            size={DETAIL_TEXT.label.size}
-            c={DETAIL_TEXT.label.c}
+            size={DETAIL_TEXT.label}
+            c="dimmed"
             fw={500}
             tt="uppercase"
             mb={mb}

@@ -46,14 +46,13 @@ import { DetailLabel } from "./DetailLabel";
  * The one line of identifiers and dates under the title: a DOI, a
  * PMID, a date.
  *
- * 13 px and dimmed, and the only thing in the detail family that is
- * smaller than body size. It earns that because nobody reads this
- * line — they look in it for one value they already know the shape
- * of. Field values are not this and must not borrow it.
+ * 13 px and dimmed. It earns the smaller size because nobody reads
+ * this line — they look in it for one value whose shape they already
+ * know. Field values are not this and must not borrow it.
  */
 export function DetailMeta({ children }: { children: ReactNode }) {
     return (
-        <Text size={DETAIL_TEXT.meta.size} c={DETAIL_TEXT.meta.c}>
+        <Text size={DETAIL_TEXT.meta} c="dimmed">
             {children}
         </Text>
     );
