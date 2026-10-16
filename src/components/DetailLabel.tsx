@@ -63,9 +63,9 @@ export function DetailLabel({ children, component = "span", mb, id }: DetailLabe
         <Text
             component={component}
             id={id}
-            size={DETAIL_TEXT.label}
+            size={DETAIL_TEXT.label.size}
+            c={DETAIL_TEXT.label.c}
             fw={500}
-            c="dimmed"
             tt="uppercase"
             mb={mb}
             // `block` so a `span` still takes its own line and a

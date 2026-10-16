@@ -53,21 +53,42 @@ export const DETAIL_CARD_RADIUS = "md";
 export const DETAIL_LABEL_TRACKING = "0.08em";
 
 /**
- * The four text roles a detail page has, as Mantine size keys.
+ * The text roles of a detail page: size and colour together.
  *
- * `label` 11 px, `value` and `body` 15 px, `meta` 13 px. The value of
- * a field is the content of the page and therefore body size; 13 px
- * is for the one line of identifiers and dates that a reader scans
- * rather than reads. The pages this family was extracted from had the
- * values at 13 px in 72 of 86 places, which made a whole detail view
- * read as fine print, so the sizes are named here instead of being
- * decided again per component.
+ * This is the rule the pages were missing. Size and colour were
+ * written independently, so every combination existed — 15 px grey,
+ * 13 px black, 11 px black — and none of them meant anything. Here a
+ * role is one pair, and there is no way to ask for half of it.
+ *
+ * Reading down the list, each step is both a size step and a tone
+ * step, so the hierarchy survives a screenshot, a print-out and a
+ * reader who is not looking closely:
+ *
+ * | role     | size      | colour  |
+ * | -------- | --------- | ------- |
+ * | title    | 24 px     | text    |
+ * | value    | 15 px     | text    |
+ * | body     | 15 px     | text    |
+ * | meta     | 13 px     | dimmed  |
+ * | label    | 11 px     | dimmed  |
+ * | absence  | 15 px     | dimmed  |
+ *
+ * 15 px is body text and therefore black. The two grey roles are both
+ * smaller than body text, and both are things a reader skips: the
+ * caption of a field, and the line of identifiers they scan for one
+ * value. `absence` is the single deliberate exception — it keeps the
+ * value's size, because it stands in a value's place, and takes the
+ * grey because there is nothing there to read.
+ *
+ * `title` is not in the object: it is a CSS variable, because `Title`
+ * renders text and text sizes belong to the theme.
  */
 export const DETAIL_TEXT = Object.freeze({
-    label: "xs",
-    value: "md",
-    body: "md",
-    meta: "sm",
+    value: Object.freeze({ size: "md", c: undefined }),
+    body: Object.freeze({ size: "md", c: undefined }),
+    meta: Object.freeze({ size: "sm", c: "dimmed" }),
+    label: Object.freeze({ size: "xs", c: "dimmed" }),
+    absence: Object.freeze({ size: "md", c: "dimmed" }),
 });
 
 /**

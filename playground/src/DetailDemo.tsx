@@ -30,7 +30,7 @@ function Section({
         <Paper withBorder p="lg">
             <Stack gap="sm">
                 <Text fw={600}>{title}</Text>
-                <Text c="dimmed">Erwartung: {expectation}</Text>
+                <DetailMeta>Erwartung: {expectation}</DetailMeta>
                 {children}
             </Stack>
         </Paper>
@@ -42,7 +42,7 @@ export function DetailDemo() {
         <Stack gap="lg">
             <Section
                 title="Schriftgrößenleiter"
-                expectation="Vier Stufen, von oben nach unten: 24px Titel, 15px Wert und Fließtext, 13px Metazeile, 11px Label. Nur die Metazeile und das Label sind kleiner als der Fließtext. Wenn ein Feldwert kleiner aussieht als dieser Absatz, ist der Fehler zurück."
+                expectation="Jede Stufe ist Größe und Farbe zusammen: 24px schwarz, 15px schwarz, 13px grau, 11px grau. Es gibt kein 15px grau und kein 13px schwarz. Grau ist immer kleiner als der Fließtext, schwarz immer 15px oder größer."
             >
                 <Stack gap="xs">
                     <Text
@@ -51,11 +51,11 @@ export function DetailDemo() {
                             fontSize: "var(--mantine-workbench-detail-title, 24px)",
                         }}
                     >
-                        Titel, 24px
+                        Titel, 24px, schwarz
                     </Text>
-                    <Text>Wert und Fließtext, 15px</Text>
-                    <DetailMeta>Metazeile, 13px</DetailMeta>
-                    <DetailLabel>Label, 11px</DetailLabel>
+                    <Text>Wert und Fließtext, 15px, schwarz</Text>
+                    <DetailMeta>Metazeile, 13px, grau</DetailMeta>
+                    <DetailLabel>Label, 11px, grau</DetailLabel>
                 </Stack>
             </Section>
 

@@ -53,7 +53,7 @@ import { DetailLabel } from "./DetailLabel";
  */
 export function DetailMeta({ children }: { children: ReactNode }) {
     return (
-        <Text size={DETAIL_TEXT.meta} c="dimmed">
+        <Text size={DETAIL_TEXT.meta.size} c={DETAIL_TEXT.meta.c}>
             {children}
         </Text>
     );
