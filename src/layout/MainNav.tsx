@@ -282,8 +282,19 @@ export function MainNav({
                 {collapsed ? collapsedHeader : expandedHeader}
             </div>
 
-            {/* Sections + items */}
-            <div style={{ flex: 1, overflowY: "auto", padding: "8px 0" }}>
+            {/* Sections + items.
+
+                `minHeight: 0` ist hier nicht optional (HOPE-575). Ein
+                `flex: 1`-Kind in einer Flex-Spalte steht auf
+                `min-height: auto` und schrumpft deshalb nie unter seine
+                Inhaltshöhe. Ohne die Zeile wächst dieser Bereich über
+                die Höhe der Navigation hinaus, der Fußbereich mit
+                Einstellungen und Profil wird aus dem Bild geschoben,
+                und ein Zug auf der Navigation verschiebt die Liste und
+                lässt sie dort stehen. Auf dem iPad, wo die Fensterhöhe
+                klein ist und die Browserleisten noch etwas abziehen,
+                trifft das sofort. */}
+            <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "8px 0" }}>
                 {sections.map((section, idx) => (
                     <SectionBlock
                         key={`${section.label ?? "untitled"}-${idx}`}
