@@ -59,6 +59,8 @@ export type { CountrySelectProps } from "./CountrySelect";
 export { PageIcon, type PageIconProps } from "./PageIcon";
 
 export { MetricCard } from "./MetricCard";
+export { MetricCardGrid } from "./MetricCardGrid";
+export type { MetricCardGridProps, MetricCardGridFactory } from "./MetricCardGrid";
 export type {
     MetricCardProps,
     MetricCardStylesNames,

@@ -1,5 +1,5 @@
-import { MetricCard } from "@hca/mantine-workbench";
-import { Badge, Button, SimpleGrid, Stack, Text, useMantineColorScheme } from "@mantine/core";
+import { MetricCard, MetricCardGrid, PageHeader, ThemeToggle } from "@hca/mantine-workbench";
+import { Badge, Button, Group, Stack, Text } from "@mantine/core";
 import { useState } from "react";
 
 const examples = [
@@ -11,19 +11,13 @@ const examples = [
 ];
 
 export function MetricCardDemo() {
-    const { setColorScheme } = useMantineColorScheme();
     const [active, setActive] = useState(false);
     const [actions, setActions] = useState(0);
     return (
         <Stack p="md" gap="lg">
-            <Text>MetricCard: ausschließlich synthetische Beispiele</Text>
-            <Button onClick={() => setColorScheme("light")}>Light</Button>
-            <Button onClick={() => setColorScheme("dark")}>Dark</Button>
-            <SimpleGrid
-                cols={{ base: 1, xs: 2, sm: 3, lg: 5 }}
-                spacing="sm"
-                data-testid="radar-metrics"
-            >
+            <PageHeader title="MetricCard Playground" subtitle="Ausschließlich synthetische Beispiele. Der untere Text ist standardmäßig einzeilig." actions={<ThemeToggle />} />
+            <Group><Button component="a" href="/" variant="default">Alle Komponenten</Button></Group>
+            <MetricCardGrid data-testid="radar-metrics">
                 {examples.map((item, index) => (
                     <MetricCard
                         key={item.label}
@@ -37,9 +31,9 @@ export function MetricCardDemo() {
                         }}
                     />
                 ))}
-            </SimpleGrid>
+            </MetricCardGrid>
             <Text data-testid="actions">{actions}</Text>
-            <SimpleGrid cols={{ base: 1, xs: 2, sm: 3 }} data-testid="edge-metrics">
+            <MetricCardGrid spacing="md" data-testid="edge-metrics">
                 <MetricCard label="Ohne ergänzenden Text" value="1.234" />
                 <MetricCard
                     label="Mit zusätzlichem Hinweis"
@@ -51,8 +45,9 @@ export function MetricCardDemo() {
                     label="Eine längere Beschriftung, die auch über zwei Zeilen hinaus lesbar bleiben muss"
                     value="42"
                     description="Dieser synthetische Beschreibungstext ist absichtlich länger als zwei Zeilen. Der vollständige Hinweis bleibt im Tooltip lesbar."
+                    descriptionLines={2}
                 />
-            </SimpleGrid>
+            </MetricCardGrid>
             <MetricCard
                 component="button"
                 label="Deaktiviert"
@@ -60,6 +55,22 @@ export function MetricCardDemo() {
                 disabled
                 onClick={() => setActions(actions + 1)}
             />
+            <Text fw={500}>Hintergrundvarianten</Text>
+            <MetricCardGrid data-testid="background-metrics">
+                <MetricCard
+                    component="button"
+                    label="Standard: leicht gedimmt"
+                    value="42"
+                    description='background="subtle" (Standard)'
+                />
+                <MetricCard
+                    component="button"
+                    label="Seitenhintergrund"
+                    value="42"
+                    description='background="body"'
+                    background="body"
+                />
+            </MetricCardGrid>
         </Stack>
     );
 }

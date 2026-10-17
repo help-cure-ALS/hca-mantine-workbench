@@ -90,6 +90,7 @@ export function App() {
                     subtitle="Live-Check vor jedem Release — läuft direkt gegen ../src"
                 />
                 <Button component="a" href="?dialog-demo=1" variant="default">Dialog Playground: Standard, verschiebbar und nichtmodal</Button>
+                <Button component="a" href="?metric-demo=1" variant="default">MetricCard Playground: Kennzahlenkarten</Button>
 
                 <Section
                     title="Radio, Checkbox, Switch — Beschreibung"

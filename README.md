@@ -69,7 +69,7 @@ translations and filter callbacks in the application; do not copy the card's
 typography or spacing into pages.
 
 ```tsx
-<SimpleGrid cols={{ base: 1, xs: 2, lg: 5 }} spacing="sm">
+<MetricCardGrid>
     <MetricCard label="Unreviewed" value={83} description="Assigned to you" />
     <MetricCard
         component="button"
@@ -80,17 +80,39 @@ typography or spacing into pages.
         aria-pressed={recentOnly}
         onClick={() => setRecentOnly(!recentOnly)}
     />
-</SimpleGrid>
+</MetricCardGrid>
 ```
 
-The label uses theme text color at weight 500 and stays at the top. The value
-and description stay at the bottom. Descriptions reserve exactly two lines,
-including when absent; overflow is available through a tooltip. Static cards
+The label uses theme text color at 12px, weight 500 and 18px line height. It stays
+at the top, is displayed in uppercase and has no minimum height. The value
+uses 26px at weight 600. The value and description stay at the bottom with no
+gap between them. Present descriptions reserve one line by default at 17px line
+height; use `descriptionLines={2}` to reserve two lines. Overflow is clipped with
+an ellipsis. Empty or
+absent descriptions render no span, so the value moves to the bottom instead.
+Overflow is available through a tooltip. Static cards
 with truncated descriptions expose the tooltip on keyboard focus as well.
-Keep cards in a stretching grid or row to align their values. `active` changes
+Use `MetricCardGrid` to stretch and align cards. It fits as many columns as the
+container allows with a default minimum card width of 210px and `sm` spacing.
+Use `minCardWidth` to change that threshold. In containers narrower than the
+minimum, a single card fits the available width without horizontal overflow.
+Cards without a description align their value with the bottom of that area. `active` changes
 the border without moving content. `badge`, `valueColor` and `aside` accommodate
 semantic badges, colored values and supporting visuals without changing the
-layout. Interactive roots must contain no nested actions.
+layout. Mantine badges in the `badge` slot default to `size="xs"`; an explicit
+badge size takes precedence. Interactive roots must contain no nested actions.
+
+The default `background="subtle"` uses a lightly shaded surface. Set
+`background="body"` to match the page background. Both options adapt their
+surface and hover colors to light and dark mode; disabled cards retain their
+disabled surface. This default can also be set centrally:
+
+```tsx
+MetricCard.extend({ defaultProps: { background: "body" } })
+```
+
+Use the Styles API variables `--metric-background` and
+`--metric-hover-background` for custom surfaces and their hover colors.
 
 The component supports Mantine's Styles API and `MetricCard.extend()` theme
 defaults. Both color schemes use theme variables. Open `?metric-demo` in the
