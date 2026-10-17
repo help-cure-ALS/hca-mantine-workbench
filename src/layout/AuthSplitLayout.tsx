@@ -183,6 +183,30 @@ export function AuthSplitLayout({
     const cssId = rawId.replace(/:/g, "");
     const heroClass = `auth-hero-${cssId}`;
     const mobileBrandClass = `auth-mobile-brand-${cssId}`;
+    const rootClass = `auth-root-${cssId}`;
+
+    /**
+     * Height of the sign-in page.
+     *
+     * `100vh` is the viewport WITHOUT the browser bars on iOS, so a
+     * page sized that way is taller than what is on screen — measured
+     * on an iPad: 972 against 892. The page then pans away under the
+     * finger and the form moves out of view.
+     *
+     * `100dvh` subtracts the bars. The `vh` line stays above it as the
+     * fallback for browsers that do not know `dvh`; those ignore the
+     * second declaration as invalid. Two declarations of one property
+     * are how a CSS fallback is written, and a style object cannot
+     * hold the same key twice — hence the style tag.
+     */
+    const heightStyleTag = (
+        <style>{`
+      .${rootClass} {
+        min-height: 100vh;
+        min-height: 100dvh;
+      }
+    `}</style>
+    );
 
     const pixelStyleTag = isPixelBreakpoint ? (
         <style>{`
@@ -196,7 +220,8 @@ export function AuthSplitLayout({
     ) : null;
 
     return (
-        <Box style={{ display: "flex", minHeight: "100vh" }}>
+        <Box className={rootClass} style={{ display: "flex" }}>
+            {heightStyleTag}
             {pixelStyleTag}
 
             {/* Hero panel — hidden below the configured breakpoint. */}
