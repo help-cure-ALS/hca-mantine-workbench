@@ -58,6 +58,14 @@ export type { CountrySelectProps } from "./CountrySelect";
 
 export { PageIcon, type PageIconProps } from "./PageIcon";
 
+export { MetricCard } from "./MetricCard";
+export type {
+    MetricCardProps,
+    MetricCardStylesNames,
+    MetricCardCssVariables,
+    MetricCardFactory,
+} from "./MetricCard";
+
 export { DetailHeader, DetailMeta } from "./DetailHeader";
 export type { DetailHeaderProps } from "./DetailHeader";
 

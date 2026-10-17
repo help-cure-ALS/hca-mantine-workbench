@@ -62,6 +62,41 @@ for shared use across the TENOS/HCA ecosystem, usable by anyone.
 - **`tokens.css`** — central CSS custom properties with light + dark
   variants under `[data-mantine-color-scheme="dark"]`.
 
+## Metric cards
+
+Use `MetricCard` for repeated label/value/description boxes. Keep data formatting,
+translations and filter callbacks in the application; do not copy the card's
+typography or spacing into pages.
+
+```tsx
+<SimpleGrid cols={{ base: 1, xs: 2, lg: 5 }} spacing="sm">
+    <MetricCard label="Unreviewed" value={83} description="Assigned to you" />
+    <MetricCard
+        component="button"
+        label="Recent changes"
+        value={3}
+        description="In the last 14 days"
+        active={recentOnly}
+        aria-pressed={recentOnly}
+        onClick={() => setRecentOnly(!recentOnly)}
+    />
+</SimpleGrid>
+```
+
+The label uses theme text color at weight 500 and stays at the top. The value
+and description stay at the bottom. Descriptions reserve exactly two lines,
+including when absent; overflow is available through a tooltip. Static cards
+with truncated descriptions expose the tooltip on keyboard focus as well.
+Keep cards in a stretching grid or row to align their values. `active` changes
+the border without moving content. `badge`, `valueColor` and `aside` accommodate
+semantic badges, colored values and supporting visuals without changing the
+layout. Interactive roots must contain no nested actions.
+
+The component supports Mantine's Styles API and `MetricCard.extend()` theme
+defaults. Both color schemes use theme variables. Open `?metric-demo` in the
+playground; `npm run test:metrics` checks alignment, responsive widths and keyboard
+interaction using synthetic examples.
+
 ## Repository layout
 
 This library is a standalone repository. Consumers reference it as a

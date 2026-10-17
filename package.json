@@ -1,6 +1,6 @@
 {
   "name": "@hca/mantine-workbench",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "Generic Mantine-v9 UI components: theme foundation, resizable panels, main navigation, data grid. No domain logic.",
   "license": "MIT",
   "private": true,
@@ -33,7 +33,8 @@
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\"",
     "typecheck": "tsc --noEmit",
-    "test:browser": "node tests/run-grid-browser.mjs"
+    "test:browser": "node tests/run-grid-browser.mjs",
+    "test:metrics": "node tests/run-grid-browser.mjs tests/metric-card-browser.mjs"
   },
   "peerDependencies": {
     "@mantine/core": "^9.0.0",

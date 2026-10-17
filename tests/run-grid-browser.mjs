@@ -46,7 +46,7 @@ try {
         await setTimeout(100);
     }
     if (!ready) throw new Error(`Grid test server failed to start: ${output}`);
-    const tests = spawn(process.execPath, ["tests/grid-browser.mjs"], {
+    const tests = spawn(process.execPath, [process.argv[2] ?? "tests/grid-browser.mjs"], {
         stdio: "inherit",
         env: { ...process.env, GRID_TEST_URL: url },
     });

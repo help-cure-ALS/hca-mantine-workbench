@@ -6,6 +6,7 @@ import { App } from "./App";
 import { GridDemo } from "./GridDemo";
 import { DialogDemo } from "./DialogDemo";
 import { DetailDemo } from "./DetailDemo";
+import { MetricCardDemo } from "./MetricCardDemo";
 import { theme } from "./theme";
 
 import "@mantine/core/styles.css";
@@ -25,6 +26,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
                     const flags = new URLSearchParams(location.search);
                     if (flags.has("dialog-demo")) return <DialogDemo />;
                     if (flags.has("detail-demo")) return <DetailDemo />;
+                    if (flags.has("metric-demo")) return <MetricCardDemo />;
                     if (flags.has("grid-test") || flags.has("grid-demo")) return <GridDemo />;
                     return <App />;
                 })()}

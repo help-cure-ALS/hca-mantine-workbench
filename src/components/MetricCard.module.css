@@ -1,0 +1,101 @@
+.root {
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-self: stretch;
+    min-width: 0;
+    width: 100%;
+    padding: var(--mantine-spacing-sm);
+    gap: var(--mantine-spacing-xs);
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-md);
+    background: var(--mantine-color-body);
+    color: var(--mantine-color-text);
+    font: inherit;
+    text-align: start;
+    text-decoration: none;
+}
+
+.root[data-active] {
+    border-color: var(--mantine-primary-color-filled);
+    box-shadow: inset 0 0 0 1px var(--mantine-primary-color-filled);
+}
+
+button.root,
+a.root {
+    cursor: pointer;
+}
+
+@media (hover: hover) {
+    button.root:not(:disabled):hover,
+    a.root:hover {
+        background: var(--mantine-color-default-hover);
+    }
+}
+
+.root:disabled {
+    cursor: not-allowed;
+    background: var(--mantine-color-disabled);
+}
+
+.header {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--mantine-spacing-xs);
+    min-width: 0;
+}
+
+.label {
+    flex: 1;
+    min-width: 0;
+    min-height: 2lh;
+    font-size: var(--mantine-font-size-sm);
+    line-height: var(--mantine-line-height-sm);
+    font-weight: 500;
+    color: var(--mantine-color-text);
+    overflow-wrap: anywhere;
+}
+
+.bottom {
+    display: flex;
+    flex-direction: column;
+    gap: var(--mantine-spacing-xs);
+    margin-top: auto;
+    min-width: 0;
+}
+
+.valueRow {
+    display: flex;
+    align-items: flex-end;
+    gap: var(--mantine-spacing-sm);
+    min-width: 0;
+}
+
+.value {
+    min-width: 0;
+    font-size: var(--mantine-font-size-xl);
+    line-height: var(--mantine-line-height-xl);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+    color: var(--metric-value-color, var(--mantine-color-text));
+}
+
+.aside {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+    justify-content: flex-end;
+}
+
+.description {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    height: 2lh;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+    font-size: var(--mantine-font-size-sm);
+    line-height: var(--mantine-line-height-sm);
+    color: var(--mantine-color-dimmed);
+}
